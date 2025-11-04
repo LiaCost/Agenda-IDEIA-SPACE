@@ -5,486 +5,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Sistema DITL — Agenda & Execução</title>
 
-    <style>
-        /* ===== Theme (dark) ===== */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #080726;
-            color: #F0F0F2;
-            padding: 0; /* Removido padding para tela cheia */
-            min-height: 100vh;
-            display: flex;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-        }
-        
-        /* ESTILOS DE COMPONENTES E GERAIS */
-
-        .header-title {
-            flex-grow: 1; /* Ocupa o espaço central */
-            text-align: center;
-        }
-
-        h1 {
-            font-size: 1.6rem;
-            margin-bottom: 0;
-        }
-
-        .small {
-            font-size: 13px;
-            opacity: 0.95
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            justify-content: flex-end;
-            flex-wrap: nowrap;
-            flex-shrink: 0;	
-            min-width: 400px;	
-        }
-        
-        .user-control {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .user-control input[type=text] {
-            padding:8px 10px;
-            border-radius:8px;
-            border:2px solid rgba(255,255,255,0.1);
-            background:transparent;
-            color:#fff;
-            max-width: 120px;	
-        }
-
-        .turn-controls {
-            display:flex;
-            align-items:center;
-            gap:10px;
-        }
-
-        /* Tabs */
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 14px;
-            flex-wrap: wrap
-        }
-
-        .tab-btn {
-            padding: 10px 16px;
-            border-radius: 8px;
-            border: none;
-            background: #3F3E59;
-            color: #fff;
-            cursor: pointer
-        }
-
-        .tab-btn:hover {
-            background: #F27EBE
-        }
-
-        .tab-btn.active {
-            background: #F20587
-        }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn .2s
-        }
-
-        .tab-content.active {
-            display: block
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0
-            }
-
-            to {
-                opacity: 1
-            }
-        }
-
-        .card {
-            background: #3F3E59;
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 14px
-        }
-
-        .form-group {
-            margin-bottom: 12px
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #F27EBE;
-            font-weight: 600
-        }
-
-        input[type=text],
-        input[type=file],
-        select,
-        textarea {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 2px solid #F27EBE;
-            background: #080726;
-            color: #F0F0F2
-        }
-
-        textarea {
-            min-height: 72px;
-            resize: vertical;
-        }
-
-        button {
-            padding: 10px 14px;
-            border-radius: 8px;
-            border: none;
-            background: #F20587;
-            color: #fff;
-            font-weight: 700;
-            cursor: pointer
-        }
-
-        button:hover {
-            background: #F27EBE;
-            transform: translateY(-2px)
-        }
-        
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* NOVO ESTILO SECUNDÁRIO PARA BOTÕES */
-        .btn-secondary {
-            background: #3F3E59 !important;
-            border: 2px solid #5A587A !important;
-            color: #F0F0F2 !important;
-        }
-
-        .btn-secondary:hover {
-            background: #5A587A !important;
-            transform: translateY(-2px);
-        }
-        
-        /* Imagem no painel de Execução/Relatórios */
-        .img-preview {
-            max-width: 100px;
-            max-height: 80px;
-            border-radius: 4px;
-            object-fit: cover;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .task-list {
-            margin-top: 10px
-        }
-
-        .task-item {
-            background: #080726;
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 12px;
-            border-left: 4px solid #F20587;
-            transition: box-shadow .2s, transform .15s
-        }
-
-        .task-item.completed {
-            border-left-color: #4CAF50;
-            opacity: 0.9
-        }
-        
-        .task-item.task-due {
-            border: 2px solid #FFD54F;
-            border-left: 4px solid #FFD54F;
-        }
-
-        .task-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            flex-wrap: wrap;
-        }
-        
-        /* Estiliza o novo display de tempo */
-        .time-display {
-            display: flex;
-            flex-direction: column;
-            text-align: right;
-            gap: 2px;
-        }
-
-        .time-display .elapsed {
-            font-weight: 700;	
-            color: #F27EBE;
-            font-size: 14px;
-        }
-        
-        .time-display .target {
-            font-size: 11px;
-            opacity: 0.7;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 8px
-        }
-
-        .btn-small {
-            padding: 8px 10px;
-            font-size: 13px;
-            border-radius: 8px;
-            cursor: pointer;
-            border: none
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 30px;
-            background: #080726;
-            border-radius: 15px;
-            overflow: hidden;
-            margin: 12px 0;
-            border: 2px solid #3F3E59
-        }
-
-        .progress-fill {
-            width: 0;
-            height: 100%;
-            background: linear-gradient(90deg, #F20587, #F27EBE);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-weight: 700;
-            transition: width .3s
-        }
-
-        .activity-card {
-            background: #080726;
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 12px;
-            border: 2px solid #3F3E59;
-            cursor: pointer
-        }
-
-        .activity-card:hover {
-            border-color: #F27EBE;
-            transform: translateX(6px)
-        }
-
-        .success-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-weight: 700;
-            display: inline-block;
-            margin-top: 6px
-        }
-
-        .success-badge.yes {
-            background: #4CAF50;
-            color: white
-        }
-
-        .success-badge.no {
-            background: #f44336;
-            color: white
-        }
-
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #F20587;
-            color: white;
-            padding: 14px;
-            border-radius: 10px;
-            z-index: 1000;
-            box-shadow: 0 6px 24px rgba(242, 5, 135, 0.2)
-        }
-
-        /* ESTILOS DOS MODAIS */
-
-        /* Base para modais */
-        #confirmEndShiftModal, #mappingModal, #reportPreviewModal, #confirmClearDataModal, #startTaskModal, #evidenceModal {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 4000;	
-            padding: 18px;
-        }
-
-        .modal-card {
-            background: #3F3E59;
-            padding: 24px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 450px;	
-            color: #F0F0F2;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-        }
-
-        #evidenceModal .modal-card {
-            max-width: 600px; /* Mais espaço para fotos e descrição */
-        }
-
-        #confirmEndShiftModal h3, #confirmClearDataModal h3, #evidenceModal h3 {
-            color: #FFD54F; /* Cor de alerta */
-            margin-bottom: 10px;
-        }
-        
-        #confirmClearDataModal h3 {
-            color: #f44336; /* Cor de perigo para limpeza */
-        }
-        
-        #evidenceModal h3 {
-             color: #F27EBE;
-        }
-
-
-        #confirmEndShiftModal .btn-group, #confirmClearDataModal .btn-group, #startTaskModal .btn-group, #evidenceModal .btn-group {
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        /* Estilos específicos de mapeamento e relatório */
-        #mappingPreview {
-            background: #fff;
-            color: #000;
-            padding: 12px;
-            border-radius: 8px;
-            overflow: auto;
-            max-height: 320px
-        }
-        
-        #logoArea {
-            width: 80px;	
-            height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;	
-            margin-bottom: 10px;	
-        }
-        
-        #logoArea img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #fff;
-        }
-
-        /* O cabeçalho antigo foi removido, mas o nome do CSS ficou */
-        header {	
-            display: none;	
-        }
-        
-        /* LAYOUT LATERAL (DESKTOP) */
-        
-        .main-layout {
-            display: flex;
-            min-height: 100vh;
-            width: 100%;
-        }
-
-        .sidebar {
-            width: 250px;
-            min-width: 250px;
-            background: #3F3E59;
-            padding: 20px 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
-            position: sticky;	
-            top: 0;
-            height: 100vh;	
-        }
-        
-        .content-area {
-            flex-grow: 1;
-            padding: 20px;
-        }
-
-        .top-header {
-            background: linear-gradient(90deg, #F20587, #F27EBE);
-            padding: 10px 20px;
-            display: flex;
-            justify-content: center; /* Centralizado */
-            align-items: center;
-            gap: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            min-height: 80px;
-        }
-        
-        .sidebar-title {
-            text-align: center;
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;	
-        }
-        
-        .tabs {
-            flex-direction: column;
-            gap: 5px;
-            margin-bottom: 0;
-        }
-
-        .tab-btn {
-            text-align: left;
-            width: 100%;
-        }
-        
-        /* AJUSTE RESPONSIVO PARA MOBILE */
-        @media(max-width:1050px) {
-            .main-layout { flex-direction: column; }
-            .sidebar { position: relative; height: auto; width: 100%; min-width: 100%; }
-            .user-control {
-                width: 100%;
-                flex-direction: row;
-                justify-content: space-between;
-            }
-            .user-control input { max-width: 100px; }
-            .user-control button { margin-top: 0; }
-        }
-        
-        #loadedContainer.hidden { display: none }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <link rel="stylesheet" href="styles.css">
 
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -499,7 +22,7 @@
             
             <div class="sidebar-title">
                 <div id="logoArea">
-                    <span style="font-style:italic;"><img src="image/Logo.png" alt="Logo da Empresa"></span>
+                    <img src="image/Logo.png" alt="Logo da Empresa">
                 </div>
                 <h1>Sistema DITL</h1>
                 <div class="small">Agenda & Execução</div>
@@ -522,6 +45,11 @@
                     <button id="btnEndShift" onclick="endShift()">Encerrar Turno</button>
                     <div id="shiftStatus" class="small">Turno encerrado ou não iniciado.</div>
                 </div>
+
+                <div id="notificationIconContainer" onclick="toggleNotificationPanel()">
+                    <i class="bi bi-bell-fill"></i>
+                    <span class="notification-badge" id="notificationCount">0</span>
+                </div>
             </div>
 
             <div id="cadastro" class="tab-content active">
@@ -531,34 +59,51 @@
                     <div class="form-group">
                         <label>Importar arquivo (.xlsx ou .csv)</label>
                         <input type="file" id="fileUpload" accept=".csv,.xlsx,.xls" onchange="onFileSelected(event)">
-                        <div class="small" style="margin-top:8px;color:#F27EBE;">
+                        <div class="small mt-8" style="color:#F27EBE;">
                             Colunas esperadas: <strong>T + (hh:mm)</strong>, <strong>Proc. ID</strong>, <strong>Event</strong>, <strong>Event / Action</strong>, <strong>Key Acceptance Criteria</strong>.
                         </div>
                     </div>
 
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+                    <div class="btn-group mt-8">
                         <button onclick="clearAllData()">Limpar dados</button>
-                        <button onclick="downloadJSON()">Exportar JSON</button>
-                        <button onclick="downloadAllImagesZip()">Baixar imagens (ZIP)</button>
                     </div>
                 </div>
 
                 <div id="loadedContainer" class="card hidden">
                     <h2>Atividades carregadas</h2>
                     
-                    <div class="form-group" style="margin-bottom: 10px;">
+                    <div class="form-group mb-10">
                         <input type="text" id="searchActivitiesInput" onkeyup="filterActivities()" placeholder="Filtrar atividades por nome ou ID..." style="width: 100%;">
                     </div>
                     
-                    <div id="loadedSummary" style="margin-bottom:8px;"></div>
+                    <div id="loadedSummary" class="mb-8"></div>
                     <div id="taskPreview" class="task-list"></div>
                 </div>
             </div>
 
             <div id="execucao" class="tab-content">
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px">
-                    <div class="card"><div class="small">Atividades</div><div id="totalActivities" style="font-size:20px;color:#F20587;font-weight:800"></div></div>
-                    <div class="card"><div class="small">Instâncias ativas</div><div id="activeActivities" style="font-size:20px;color:#F20587;font-weight:800"></div></div>
+                
+                <div class="execution-summary-grid">
+                    
+                    <div class="execution-stats-container">
+                        <div class="card">
+                            <div class="small">Atividades</div>
+                            <div id="totalActivities"></div>
+                        </div>
+                        <div class="card">
+                            <div class="small">Instâncias ativas</div>
+                            <div id="activeActivities"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="export-card">
+                        <h2 class="mb-10" style="font-size: 1.2rem;">Exportação de Dados (Backup)</h2>
+                        <div class="btn-group">
+                            <button class="btn-small" onclick="downloadJSON()">Exportar JSON</button>
+                            <button class="btn-small" onclick="downloadAllImagesZip()">Baixar imagens (ZIP)</button>	
+                        </div>
+                    </div>
+                    
                 </div>
 
                 <div class="card">
@@ -569,15 +114,25 @@
                 <div id="executionPanel" class="card hidden">
                     <h2 id="executionTitle"></h2>
                     <div class="progress-bar"><div class="progress-fill" id="progressBar">0%</div></div>
+
+                    <div class="form-group mb-15">
+                        <label for="executionFilter" style="margin-bottom: 5px;">Filtrar Tarefas por Status</label>
+                        <select id="executionFilter" onchange="renderExecutionTasks()">
+                            <option value="todos">Todas as Tarefas</option>
+                            <option value="nao iniciada">Não Iniciadas</option>
+                            <option value="em execucao">Em Execução</option>
+                            <option value="pausada">Pausadas</option>
+                            <option value="concluida">Finalizadas</option>
+                        </select>
+                    </div>
                     <div id="executionTasks"></div>
                 </div>
             </div>
-
             <div id="relatorios" class="tab-content">
                 <div class="card">
                     <h2>Relatórios</h2>
                     
-                    <div class="form-group" style="margin-bottom: 15px;">
+                    <div class="form-group mb-15">
                         <label for="reportFilter" style="margin-bottom: 5px;">Filtrar por Status</label>
                         <select id="reportFilter" onchange="renderAllReports()">
                             <option value="todos">Todos</option>
@@ -586,10 +141,8 @@
                         </select>
                     </div>
 
-                    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-                        <button onclick="renderAllReports()">Atualizar</button>
-                        <button onclick="generateAllReportsPDF()">Gerar PDF (apenas Concluídos)</button>
-                        <button onclick="generateFinalReportPDF()">Relatório Final (Tudo)</button>	
+                    <div class="btn-group mb-12">
+                        <button onclick="generateFinalReportPDF()">Relatório Final (Tudo)</button>
                     </div>
                     <div id="reportList"></div>
                 </div>
@@ -599,10 +152,21 @@
         
     </div>
     
+    <div class="notification-panel" id="notificationPanel">
+        <div class="mb-15" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="color:#F27EBE;">Notificações</h3>
+            <button class="btn-secondary btn-small" onclick="toggleNotificationPanel()">Fechar</button>
+        </div>
+        <button class="btn-secondary btn-small" onclick="clearNotificationLog()">Limpar</button>
+        <div id="notificationLog" class="mt-15"> 
+            <div class="small" style="opacity: 0.7;">Nenhum alerta recente.</div>
+        </div>
+    </div>
+    
     <div id="confirmClearDataModal" class="hidden" aria-hidden="true">
         <div class="modal-card">
-            <h3 id="clearDataTitle">ATENÇÃO: Limpeza de Dados!</h3>
-            <p id="clearDataMessage" style="margin-bottom: 15px;">Tem certeza que deseja apagar **TODOS** os dados armazenados localmente (atividades, execuções e logs)? Esta ação não pode ser desfeita.</p>
+            <h3>ATENÇÃO: Limpeza de Dados!</h3>
+            <p class="mb-15">Tem certeza que deseja apagar **TODOS** os dados armazenados localmente (atividades, execuções e logs)? Esta ação não pode ser desfeita.</p>
             
             <div class="btn-group">
                 <button class="button btn-secondary" onclick="closeClearDataConfirmation()">Não, Cancelar</button>
@@ -614,62 +178,90 @@
 
     <div id="confirmEndShiftModal" class="hidden" aria-hidden="true">
         <div class="modal-card">
-            <h3 id="confirmationTitle">ATENÇÃO: Tarefas Pendentes!</h3>
-            <p id="pendingTaskMessage" style="margin-bottom: 15px;">Ainda há tarefas não concluídas. Deseja encerrar o turno e gerar o relatório mesmo assim?</p>
+            <h3>ATENÇÃO: Tarefas pendentes!</h3>
+            <p id="pendingTaskMessage" class="mb-15">Ainda há tarefas não concluídas. Deseja encerrar o turno e gerar o relatório mesmo assim?</p>
             
             <div class="btn-group">
-                <button class="button btn-secondary" onclick="closeEndShiftConfirmation()">Não, Continuar Trabalho</button>
-                <button class="button" style="background:#f44336;" onclick="confirmEndShift(true)">Sim, Encerrar Agora</button>
+                <button class="button btn-secondary" onclick="closeEndShiftConfirmation()">Não, continuar trabalho</button>
+                <button class="button" style="background:#f44336;" onclick="confirmEndShift(true)">Sim, encerrar agora</button>
             </div>
         </div>
     </div>
 
-
     <div id="startTaskModal" class="hidden" aria-hidden="true">
         <div class="modal-card">
-            <h3>Iniciar Tarefa</h3>
-            <p style="margin-bottom: 15px;">Confirme seu ID de operador antes de iniciar a atividade:</p>
-            
+            <h3>Iniciar tarefa</h3>
+            <p id="taskNameDisplay"></p>
+
             <div class="form-group">
-                <label for="modalOperatorIdInput">ID do Operador</label>
+                <label for="modalOperatorIdInput">ID do operador</label>
                 <input type="text" id="modalOperatorIdInput" placeholder="Ex: Lola" required>
+            </div>
+
+            <div class="form-group">
+                <label for="timeModeSelect">Modo de cronometragem</label>
+                <select id="timeModeSelect" onchange="updateTimeModeDisplay()">
+                    <option value="manual">Manual (Cronômetro normal)</option>
+                    <option value="countdown">Contagem regressiva (Duração HH:MM)</option>
+                    <option value="scheduled">Horário programado (Janela de tempo)</option>
+                </select>
+            </div>
+
+            <div class="form-group hidden" id="countdownTimeGroup">
+                <label for="countdownTimeInput">Duração máxima (hh:mm)</label>
+                <input type="time" id="countdownTimeInput" value="00:10" step="60" required>
+            </div>
+
+            <div class="form-group hidden" id="scheduledTimeGroup">
+                <div id="scheduledTimeInputs">
+                    <div>
+                        <label for="scheduledAlertTimeInput">Hora de início do alerta (hh:mm)</label>
+                        <input type="time" id="scheduledAlertTimeInput" value="12:30" step="60" required>
+                    </div>
+                    <div>
+                        <label for="scheduledLimitTimeInput">Hora limite (hh:mm)</label>
+                        <input type="time" id="scheduledLimitTimeInput" value="13:30" step="60" required>
+                    </div>
+                </div>
+                <div class="small mt-8" style="opacity: 0.8;">O alerta será disparado no 1º horário. O timer irá contar até o 2º horário.</div>
             </div>
             
             <div class="btn-group" style="justify-content: flex-end;">
                 <button class="button btn-secondary" onclick="closeTaskStartModal()">Cancelar</button>
-                <button class="button" style="background:#4CAF50;" id="confirmStartTaskButton" onclick="confirmTaskStart()">Confirmar e Iniciar</button>
+                <button class="button" style="background:#4CAF50;" id="confirmStartTaskButton" onclick="confirmTaskStart()">Confirmar e iniciar</button>
             </div>
         </div>
     </div>
-    
+
     <div id="evidenceModal" class="hidden" aria-hidden="true">
         <div class="modal-card">
-            <h3>Evidências da Atividade</h3>
-            <p id="evidenceModalTaskName" style="margin-bottom: 15px; font-weight: 700; color: #F27EBE;"></p>
+            <h3>Evidências da atividade</h3>
+            <p id="evidenceModalTaskName" class="mb-15 fw-700" style="color: #F27EBE;"></p>
 
             <div class="form-group">
-                <label for="evidenceModalObservation">Descrição / Observação da Tarefa (Obrigatório)</label>
+                <label for="evidenceModalObservation">Observação da tarefa (Obrigatório)</label>
                 <textarea id="evidenceModalObservation" placeholder="Descreva o que foi feito ou o motivo da falha." required></textarea>
             </div>
 
             <div class="form-group">
-                <label>Fotos de Evidência (Máximo 3)</label>
-                <div id="evidencePhotoPreview" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                <label>Fotos de evidência (Máximo 3)</label>
+                <div id="evidencePhotoPreview" class="mb-8" style="display:flex; flex-wrap:wrap; gap:8px;">
                     </div>
-                <input type="file" id="evidenceFileInput" accept="image/*" multiple style="display:none;">
-                <button class="btn-secondary" style="margin-top: 8px;" onclick="document.getElementById('evidenceFileInput').click()">Adicionar Foto</button>
+                <input type="file" id="evidenceFileInput" accept="image/*" multiple class="hidden">
+                <button class="btn-secondary mt-8" onclick="document.getElementById('evidenceFileInput').click()">Adicionar foto</button>
             </div>
 
             <div class="btn-group" style="justify-content: flex-end;">
                 <button class="button btn-secondary" onclick="closeEvidenceModal()">Cancelar</button>
-                <button class="button" id="evidenceSubmitButton" style="background:#F20587;" onclick="submitEvidenceAndComplete()">Confirmar e Finalizar</button>
+                <button class="button" id="evidenceSubmitButton" style="background:#F20587;" onclick="submitEvidenceAndComplete()">Confirmar e finalizar</button>
             </div>
         </div>
     </div>
+
     <div id="mappingModal" class="hidden" aria-hidden="true">
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="mapTitle" style="max-width: 980px;">
             <h3 id="mapTitle">Preview & Mapeamento de colunas</h3>
-            <p class="small" style="margin-bottom:8px">Confirme o mapeamento das colunas detectadas e verifique as primeiras linhas antes de importar.</p>
+            <p class="small mb-8">Confirme o mapeamento das colunas detectadas e verifique as primeiras linhas antes de importar.</p>
 
             <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
                 <div style="flex:1"><label>T + (hh:mm)</label><select id="mapTime"></select></div>
@@ -679,9 +271,9 @@
                 <div style="flex:1"><label>Key Acceptance Criteria</label><select id="mapAcceptance"></select></div>
             </div>
 
-            <div id="mappingPreview"></div>
+            <div id="mappingPreview" class="p-12" style="background: #fff; color: #000; border-radius: 8px; overflow: auto; max-height: 320px;"></div>
 
-            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+            <div class="btn-group mt-8" style="justify-content:flex-end">
                 <button onclick="confirmImport()" style="background:#4CAF50">Confirmar importação</button>
                 <button onclick="cancelMapping()" style="background:#f44336">Cancelar</button>
             </div>
@@ -690,7 +282,7 @@
 
     <div id="reportPreviewModal" class="hidden">
         <div class="report-card" id="reportPreviewContent" style="max-width: 900px;">
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px">
+            <div class="btn-group mb-8" style="justify-content:flex-end">
                 <button onclick="downloadReportPDFFromPreview()">Baixar PDF</button>
                 <button onclick="closeReportPreview()">Fechar</button>
             </div>
@@ -698,1305 +290,6 @@
         </div>
     </div>
 
-    <script>
-    // ==================== VARIAVEIS GLOBAIS / ESTADO ====================
-    let currentUser = localStorage.getItem('currentUser') || ''; // Começa vazio para forçar login
-    let activities = JSON.parse(localStorage.getItem('activities')) || []; // Lista mestre de tarefas importadas
-    let executions = JSON.parse(localStorage.getItem('executions')) || []; // Instâncias de turnos e tarefas executadas
-    let executingActivity = null; // A instância de execução que o operador está trabalhando
-    const stopwatchIntervals = {}; // Armazena os IDs de setInterval para cada cronómetro ativo
-    let dueCheckerInterval = null; // Armazena o ID do setInterval para o checker de tarefas
-    let currentTaskToStart = null; // Armazena o ID da tarefa que está sendo confirmada
-    let currentTaskToComplete = { taskId: null, success: null }; // Novo estado para o modal de evidências
-    // NOVO: Variável para rastrear a instância de relatório que está em prévia
-    let currentReportInstanceId = null;
-
-
-    // ==================== PERSISTÊNCIA E INICIALIZAÇÃO ====================
-
-    function persistAll() {
-        localStorage.setItem('currentUser', currentUser);
-        localStorage.setItem('activities', JSON.stringify(activities));
-        // Salva o estado atual da execução ativa
-        if (executingActivity) {
-            const index = executions.findIndex(e => e.instanceId === executingActivity.instanceId);
-            if (index !== -1) {
-                executions[index] = executingActivity;
-            }
-        }
-        localStorage.setItem('executions', JSON.stringify(executions));
-    }
-
-    function loadState() {
-        // Tenta recarregar a atividade de execução ativa
-        const shiftActiveISO = localStorage.getItem('shiftActiveISO');
-        if (shiftActiveISO) {
-            executingActivity = executions.find(e => e.status === 'ativo' && e.shiftStart === shiftActiveISO);
-        }
-        
-        // Configura o usuário atual na interface
-        const desktopInput = document.getElementById('currentUserInput');
-        if (desktopInput) desktopInput.value = currentUser;
-
-        // Se houver tarefas carregadas, exibe-as
-        if (activities.length > 0) {
-            document.getElementById('loadedContainer').classList.remove('hidden');
-        }
-
-        renderHeaderStatus();
-        renderExecutionInstances();
-        updateStats();
-        renderActivityPreview();	
-
-        // Reinicia cronómetros ativos após o carregamento (correção de persistência)
-        if (executingActivity && executingActivity.tasks) {
-            executingActivity.tasks.forEach(task => {
-                if (task._stopwatchRunning) {
-                    // Re-inicia o cronómetro para cada tarefa marcada como 'running'
-                    startStopwatch(task.id);	
-                }
-            });
-            // Seleciona a instância ativa ao carregar a página
-            if (executingActivity.instanceId) {
-                selectExecutionInstance(executingActivity.instanceId);
-            }
-        }
-
-        startScheduledChecker(); // Inicia o checker de tarefas programadas
-    }
-
-    // Adiciona o Event Listener no DOMContentLoaded (Melhor prática)
-    document.addEventListener('DOMContentLoaded', () => {
-        // Event Listener para o input de arquivo do modal de evidências
-        document.getElementById('evidenceFileInput').addEventListener('change', addPhotosToEvidenceModal);
-        loadState();
-    });
-
-    // ==================== UTILITY FUNCTIONS ====================
-
-    function showNotification(message, duration = 3000) {
-        const el = document.createElement('div');
-        el.className = 'notification';
-        el.textContent = message;
-        document.body.appendChild(el);
-        setTimeout(() => {
-            el.remove();
-        }, duration);
-    }
-
-    // CORREÇÃO: Recebe 'this' como o botão clicado
-    function showTab(tabId, clickedButton) {
-        // Remove a classe 'active' de todo o conteúdo e botões
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-
-        // Ativa o conteúdo da aba e o botão
-        document.getElementById(tabId).classList.add('active');
-        if (clickedButton) {
-            clickedButton.classList.add('active');
-        } else {
-             // Fallback (ex: se chamado via JS sem evento)
-             document.querySelector(`.tab-btn[onclick*='${tabId}']`)?.classList.add('active');
-        }
-        
-        // Atualiza a visualização ao entrar nas abas
-        if (tabId === 'execucao') {
-            renderExecutionInstances();
-            
-            if (executingActivity) {
-                selectExecutionInstance(executingActivity.instanceId);
-            }
-        } else if (tabId === 'relatorios') {
-            renderAllReports();
-        }
-    }
-
-    function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-    function formatSeconds(sec) {	
-        const totalSecs = Math.floor(sec);
-        const mm = Math.floor(totalSecs / 60);	
-        const ss = totalSecs % 60;	
-        return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;	
-    }
-
-    /**
-     * @description Converte o tempo do formato T + (hh:mm) para segundos a partir da meia-noite.
-     */
-    function timeToSeconds(timeStr) {
-        const parts = timeStr.match(/\((\d{2}):(\d{2})\)/);
-        if (parts) {
-            const hours = parseInt(parts[1], 10);
-            const minutes = parseInt(parts[2], 10);
-            return (hours * 3600) + (minutes * 60);
-        }
-        return null;
-    }
-
-    // ==================== CONTROLE DE USUÁRIO E TURNO ====================
-    // (A função setUserFromInput foi removida por não ter um input no desktop header no layout final)
-
-
-    function renderHeaderStatus() {
-        const shiftActiveISO = localStorage.getItem('shiftActiveISO');
-        const shiftStatusEl = document.getElementById('shiftStatus');
-        const btnStart = document.getElementById('btnStartShift');
-        const btnEnd = document.getElementById('btnEndShift');
-
-        const hasUser = currentUser !== '';
-        
-        if (shiftActiveISO) {
-            // Verifica se executingActivity existe antes de acessar .operator
-            const operatorName = executingActivity ? executingActivity.operator : 'N/A';
-            shiftStatusEl.innerHTML = `Turno ATIVO desde: ${new Date(shiftActiveISO).toLocaleString()} (Operador: ${operatorName})`;
-            btnStart.disabled = true;
-            btnEnd.disabled = false;
-        } else {
-            shiftStatusEl.textContent = 'Turno encerrado ou não iniciado.';
-            // OBS: O botão Iniciar Turno agora depende apenas se há atividades carregadas (login é feito por tarefa)
-            btnStart.disabled = activities.length === 0;
-            btnEnd.disabled = true;
-        }
-    }
-
-    function startShift() {
-        if (localStorage.getItem('shiftActiveISO')) {
-            showNotification('Já existe um turno ativo! Encerre o anterior primeiro.', 3000);
-            return;
-        }
-
-        if (activities.length === 0) {
-            showNotification('Importe as atividades (planilha) primeiro.', 3000);
-            document.querySelector('.tab-btn').click(); // Volta para a aba de cadastro
-            return;
-        }
-
-        const startTime = new Date().toISOString();
-        localStorage.setItem('shiftActiveISO', startTime);
-        
-        // Cria uma nova instância de execução (Turno)
-        executingActivity = {
-            instanceId: `INST-${Date.now()}`,
-            operator: currentUser || 'N/A', // Define N/A temporariamente ou usa o último logado
-            shiftStart: startTime,
-            shiftEnd: null,
-            status: 'ativo',
-            tasks: activities.map(t => ({ // Clona as tarefas base
-                ...t,
-                id: `TASK-${Date.now()}-${Math.random()}`,
-                status: 'pendente',
-                runtimeSeconds: 0,
-                _stopwatchRunning: false,
-                _stopwatchStart: null,
-                completed: false,
-                completedAt: null,
-                photos: [],
-                operatorTask: '', // Novo campo para operador da TAREFA
-                observation: '',
-                due: false, // Flag para o alerta visual
-                dueSeconds: timeToSeconds(t['T + (hh:mm)']) // Converte o tempo de prazo para segundos
-            }))
-        };
-        executions.push(executingActivity);
-        persistAll();
-
-        renderHeaderStatus();
-        renderExecutionInstances();
-        updateStats(); // Atualiza as estatísticas
-        
-        // Seleciona imediatamente a nova instância após iniciar o turno
-        selectExecutionInstance(executingActivity.instanceId);	
-        
-        // Corrige a navegação forçada para a aba Execução
-        const execButton = document.querySelector(".tab-btn[onclick*='execucao']");
-        showTab('execucao', execButton);
-
-        showNotification('Turno iniciado! Agora, inicie a primeira tarefa com o seu ID.', 3000);
-    }
-
-    // Função para abrir o modal de confirmação de encerramento
-    function openEndShiftConfirmation() {
-        if (!executingActivity || !localStorage.getItem('shiftActiveISO')) {
-            showNotification('Nenhum turno ativo para encerrar.', 3000);
-            return;
-        }
-        
-        const nonCompleted = executingActivity.tasks.filter(t => !t.completed).length;
-        
-        if (nonCompleted === 0) {
-            // Se não houver pendências, encerra diretamente
-            confirmEndShift(false);
-            return;
-        }
-
-        // Exibe o modal e injeta a mensagem
-        document.getElementById('pendingTaskMessage').innerHTML = `Ainda há **${nonCompleted} tarefas** não concluídas. Deseja encerrar o turno e gerar o relatório mesmo assim?`;
-        document.getElementById('confirmEndShiftModal').classList.remove('hidden');
-    }
-
-    // Função para fechar o modal de encerramento
-    function closeEndShiftConfirmation() {
-        document.getElementById('confirmEndShiftModal').classList.add('hidden');
-    }
-
-    // Função que executa o encerramento após a confirmação
-    function confirmEndShift(wasForced) {
-        closeEndShiftConfirmation(); // Fecha o modal
-        
-        if (executingActivity === null) return;
-
-        // Pausa todos os cronómetros ativos
-        executingActivity.tasks.forEach(task => {
-            if (task._stopwatchRunning) {
-                pauseStopwatch(task.id);	
-            }
-        });
-
-        executingActivity.shiftEnd = new Date().toISOString();
-        executingActivity.status = 'concluido';
-        localStorage.removeItem('shiftActiveISO');
-
-        persistAll(); // Persiste a instância concluída
-        executingActivity = null; // Limpa o estado de execução ativa
-        
-        renderHeaderStatus();
-        updateStats();	
-        
-        const reportButton = document.querySelector(".tab-btn[onclick*='relatorios']");
-        showTab('relatorios', reportButton);
-
-        showNotification('Turno encerrado com sucesso. Relatório gerado!', 4000);
-    }
-
-    // Substitui a chamada original de endShift por openEndShiftConfirmation
-    function endShift() {
-        openEndShiftConfirmation();
-    }
-    
-    // Função para abrir o modal de confirmação de limpeza de dados
-    function clearAllData() {
-        document.getElementById('confirmClearDataModal').classList.remove('hidden');
-    }
-
-    // Função para fechar o modal de limpeza de dados
-    function closeClearDataConfirmation() {
-        document.getElementById('confirmClearDataModal').classList.add('hidden');
-    }
-
-    // Função que executa a limpeza total
-    function confirmClearAllData() {
-        closeClearDataConfirmation();
-        localStorage.clear();
-        location.reload();	
-    }
-
-    // ==================== LÓGICA DO CRONÓMETRO E NOVO FLUXO DE INÍCIO ====================
-    
-    function initiateTaskWithOperatorID(taskId) {
-        // Define qual tarefa será iniciada após a confirmação
-        currentTaskToStart = taskId;
-        
-        const modalInput = document.getElementById('modalOperatorIdInput');
-        
-        // Tenta pré-preencher com o último operador logado
-        modalInput.value = currentUser;
-        
-        document.getElementById('startTaskModal').classList.remove('hidden');
-        modalInput.focus();
-    }
-
-    function closeTaskStartModal() {
-        document.getElementById('startTaskModal').classList.add('hidden');
-        currentTaskToStart = null;
-    }
-
-    function confirmTaskStart() {
-        const modalInput = document.getElementById('modalOperatorIdInput');
-        const operatorId = modalInput.value.trim();
-
-        if (operatorId === '') {
-            showNotification('O ID do operador é obrigatório para iniciar a tarefa.', 3000);
-            return;
-        }
-        
-        const taskId = currentTaskToStart;
-        const task = executingActivity.tasks.find(t => t.id === taskId);
-        
-        if (!task) {
-            closeTaskStartModal();
-            return;
-        }
-
-        // 1. Atualiza o operador logado globalmente (para sugestões futuras)
-        currentUser = operatorId;
-        localStorage.setItem('currentUser', currentUser);
-
-        // 2. Associa o operador à tarefa
-        task.operatorTask = operatorId;
-        
-        // 3. Se for a PRIMEIRA tarefa, define o operador do turno
-        if (executingActivity.operator === 'N/A' || executingActivity.operator === '') {
-             executingActivity.operator = operatorId;
-        }
-        
-        // 4. Inicia o cronómetro (função original)
-        startStopwatch(taskId);
-
-        closeTaskStartModal();
-    }
-
-    function startStopwatch(taskId) {
-        const task = executingActivity.tasks.find(tt => tt.id === taskId);
-        if (!task) return;
-
-        // VALIDAÇÃO DE AGENDAMENTO: Não pode iniciar antes do horário previsto
-        if (task.dueSeconds !== null) {
-            const now = new Date();
-            const shiftStart = new Date(executingActivity.shiftStart);
-            const elapsedShiftSeconds = Math.floor((now.getTime() - shiftStart.getTime()) / 1000);
-
-            if (elapsedShiftSeconds < task.dueSeconds) {
-                const diff = task.dueSeconds - elapsedShiftSeconds;
-                const mm = Math.floor(diff / 60);
-                const ss = diff % 60;
-                showNotification(`ERRO: Faltam ${mm}min e ${ss}s para o horário de início agendado (${task['Event / Action']}).`, 5000);
-                return;
-            }
-        }
-
-        // Validação de Tarefa Ativa Única
-        const currentlyRunning = executingActivity.tasks.find(t => t._stopwatchRunning);
-        if (currentlyRunning && currentlyRunning.id !== taskId) {
-            showNotification(`A tarefa '${currentlyRunning['Event / Action']}' já está em execução. Pause-a primeiro.`, 5000);
-            return;
-        }
-        
-        if (task._stopwatchRunning) {	
-            showNotification('Cronómetro já em execução para esta tarefa.');	
-            return;	
-        }
-        
-        // 1. Inicia o controle
-        task._stopwatchRunning = true;
-        // 2. Registra o momento de início (timestamp em ms)
-        task._stopwatchStart = new Date().getTime();	
-
-        persistAll(); // Persiste o estado de início
-
-        // 3. Renderiza UI
-        updateExecutionTaskUI(taskId);
-
-        // 4. O setInterval roda a cada segundo
-        stopwatchIntervals[taskId] = setInterval(() => {
-            const sessionElapsedSeconds = Math.floor((new Date().getTime() - task._stopwatchStart) / 1000);
-            const totalElapsed = (task.runtimeSeconds || 0) + sessionElapsedSeconds;
-            
-            const mm = Math.floor(totalElapsed / 60), ss = totalElapsed % 60;
-            
-            const el = document.getElementById(`timer-${taskId}`);
-            const targetTime = task['T + (hh:mm)'] || '--:--';
-            
-            if (el) {
-                el.querySelector('.elapsed').textContent = `Decorrido: ${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
-                el.querySelector('.target').textContent = `Previsão: ${targetTime}`;
-            }
-
-        }, 1000);
-    }
-
-    function pauseStopwatch(taskId) {
-        const task = executingActivity.tasks.find(tt => tt.id === taskId);
-        if (!task || !task._stopwatchRunning) return;
-        
-        // 1. Para o intervalo
-        clearInterval(stopwatchIntervals[taskId]);
-        
-        // 2. Calcula a duração da sessão (em segundos)
-        const sessionDurationSeconds = Math.floor((new Date().getTime() - task._stopwatchStart) / 1000);
-
-        // 3. SOMA a duração da sessão atual ao tempo acumulado (runtimeSeconds)
-        task.runtimeSeconds = (task.runtimeSeconds || 0) + sessionDurationSeconds;
-
-        // 4. Limpa e atualiza o estado
-        task._stopwatchRunning = false;
-        task._stopwatchStart = null;
-        
-        persistAll();
-        updateExecutionTaskUI(taskId);
-    }
-
-    function stopAndComplete(taskId, success) {
-        const task = executingActivity.tasks.find(tt => tt.id === taskId);
-        if (!task) return;
-
-        // Pausa e acumula o tempo, se estiver rodando
-        if (task._stopwatchRunning) {
-            pauseStopwatch(taskId);
-        }
-        
-        // Agora, ABRE O MODAL para coletar as evidências antes de concluir
-        openEvidenceModal(taskId, success);
-    }
-
-    // ==================== LÓGICA DO MODAL DE EVIDÊNCIAS ====================
-
-    function openEvidenceModal(taskId, success) {
-        const task = executingActivity.tasks.find(tt => tt.id === taskId);
-        if (!task) return;
-
-        // 1. Define o estado para finalização
-        currentTaskToComplete = { taskId, success };
-        
-        // 2. Preenche os campos do modal
-        document.getElementById('evidenceModalTaskName').textContent = task['Event / Action'];
-        
-        // Preenche o campo de observação com o que já foi digitado (se houver)
-        document.getElementById('evidenceModalObservation').value = task.observation || '';	
-
-        // Atualiza o texto do botão de submissão
-        const btn = document.getElementById('evidenceSubmitButton');
-        btn.textContent = success ? 'Concluir com SUCESSO' : 'Concluir com FALHA';
-        btn.style.background = success ? '#4CAF50' : '#f44336';
-        
-        // 3. Renderiza as fotos existentes (se houver)
-        renderEvidencePhotoPreview(task.photos);
-
-        // 4. Exibe o modal
-        document.getElementById('evidenceModal').classList.remove('hidden');
-        document.getElementById('evidenceModalObservation').focus();
-    }
-
-    function closeEvidenceModal() {
-        document.getElementById('evidenceModal').classList.add('hidden');
-        currentTaskToComplete = { taskId: null, success: null };
-        // Opcional: Limpar o campo de arquivo para que o mesmo arquivo possa ser re-selecionado
-        document.getElementById('evidenceFileInput').value = '';	
-    }
-
-    function renderEvidencePhotoPreview(photos) {
-        const previewEl = document.getElementById('evidencePhotoPreview');
-        previewEl.innerHTML = '';
-        photos.forEach((dataURL, index) => {
-            // Criar um container para a imagem e o botão de remoção
-            const container = document.createElement('div');
-            container.style.position = 'relative';
-            container.style.display = 'inline-block';
-            
-            const img = document.createElement('img');
-            img.src = dataURL;
-            img.className = 'img-preview';
-            img.style.display = 'block';
-            img.style.marginRight = '5px';
-            img.style.maxWidth = '80px';
-            img.style.maxHeight = '60px';
-            img.style.borderRadius = '4px';
-
-            const removeBtn = document.createElement('button');
-            removeBtn.textContent = '❌';
-            removeBtn.className = 'btn-small btn-secondary';
-            removeBtn.style.position = 'absolute';
-            removeBtn.style.top = '0';
-            removeBtn.style.right = '0';
-            removeBtn.style.padding = '2px 4px';
-            removeBtn.style.background = 'rgba(244, 67, 54, 0.8)';
-            removeBtn.style.color = '#fff';
-            removeBtn.style.lineHeight = '1';
-            removeBtn.style.fontSize = '10px';
-            removeBtn.style.transform = 'none'; // Remove hover effect
-            
-            // Garantir que a imagem e o botão de remover fiquem visíveis no modal
-            img.style.width = '80px';
-            img.style.height = '60px';
-
-
-            removeBtn.onclick = (e) => {
-                e.stopPropagation();
-                removePhotoFromEvidenceModal(currentTaskToComplete.taskId, index);
-            };
-
-            container.appendChild(img);
-            container.appendChild(removeBtn);
-            previewEl.appendChild(container);
-        });
-
-        // Desabilita o botão 'Adicionar Foto' se atingiu o limite
-        const addButton = document.querySelector('#evidenceModal .btn-secondary');
-        const maxPhotos = 3;
-        if (photos.length >= maxPhotos) {
-            addButton.setAttribute('disabled', 'disabled');
-            addButton.textContent = `Limite de ${maxPhotos} fotos atingido`;
-        } else {
-            addButton.removeAttribute('disabled');
-            addButton.textContent = 'Adicionar Foto';
-        }
-    }
-
-    // CORREÇÃO: Função atualizada para salvar as fotos após o FileReader carregar
-    function addPhotosToEvidenceModal() {
-        const taskId = currentTaskToComplete.taskId;
-        const task = executingActivity.tasks.find(tt => tt.id === taskId);
-        if (!task) return;
-        
-        const files = Array.from(document.getElementById('evidenceFileInput').files);
-        const maxAllowed = 3 - task.photos.length;
-        const filesToAdd = files.slice(0, maxAllowed);
-        
-        if (filesToAdd.length === 0) {
-            // Limpa o input file para permitir adicionar mais (mesmo se o limite foi atingido)
-            document.getElementById('evidenceFileInput').value = '';
-            return;
-        }
-
-        let filesProcessed = 0;
-        const totalFiles = filesToAdd.length;
-
-        filesToAdd.forEach(f => {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                task.photos.push(ev.target.result);
-                filesProcessed++;
-
-                if (filesProcessed === totalFiles) {
-                    // 1. Renderiza a preview no modal
-                    renderEvidencePhotoPreview(task.photos);	
-                    
-                    // 2. Salva o novo estado com a foto
-                    persistAll();	
-
-                    // 3. Limpa o input file para permitir adicionar mais
-                    document.getElementById('evidenceFileInput').value = '';	
-                }
-            };
-            reader.readAsDataURL(f);
-        });
-    }
-
-    function removePhotoFromEvidenceModal(taskId, index) {
-        const task = executingActivity.tasks.find(tt => tt.id === taskId);
-        if (!task || index < 0 || index >= task.photos.length) return;
-        
-        task.photos.splice(index, 1); // Remove a foto
-        persistAll(); // Persiste a remoção
-        renderEvidencePhotoPreview(task.photos); // Re-renderiza a preview no modal
-    }
-
-    function submitEvidenceAndComplete() {
-        const { taskId, success } = currentTaskToComplete;
-        const task = executingActivity.tasks.find(tt => tt.id === taskId);
-        if (!task) return;
-
-        const observation = document.getElementById('evidenceModalObservation').value.trim();
-        
-        // Validação
-        if (observation === '') {
-            showNotification('A descrição/observação é obrigatória.', 3000);
-            return;
-        }
-        
-        // 1. Salva Observação
-        task.observation = observation;
-        
-        // 2. Finalização e Status
-        task.completed = true;
-        task.status = success ? 'concluída (sucesso)' : 'concluída (falha)';
-        task.success = success;
-        if (!task.completedAt) task.completedAt = new Date().toISOString();
-        
-        // 3. Reseta a flag de alerta
-        task.due = false;	
-
-        persistAll();
-        updateExecutionTaskUI(taskId);
-        showNotification(`Tarefa finalizada: ${task['Event / Action']} (${success ? 'Sucesso' : 'Falha'})`);
-        updateProgress();
-        
-        closeEvidenceModal(); // Fecha o modal após a conclusão
-    }
-
-
-    // ==================== STATS HELPER ====================
-
-    function updateStats() {
-        const totalActivities = activities.length;
-        const activeExecutions = executions.filter(e => e.status === 'ativo').length;
-
-        // IDs do HTML para o painel de estatísticas
-        const totalActivitiesEl = document.getElementById('totalActivities');
-        const activeActivitiesEl = document.getElementById('activeActivities');
-
-        if (totalActivitiesEl) totalActivitiesEl.textContent = totalActivities;
-        if (activeActivitiesEl) activeActivitiesEl.textContent = activeExecutions;
-    }
-
-
-    // ==================== RENDERIZAÇÃO DE TAREFAS DE EXECUÇÃO ====================
-
-    function renderExecutionInstances() {
-        const listEl = document.getElementById('activityList');
-        
-        listEl.innerHTML = '';
-        
-        const activeExecutions = executions.filter(e => e.status === 'ativo');
-
-        if (activeExecutions.length === 0 && activities.length > 0 && !localStorage.getItem('shiftActiveISO')) {
-            listEl.innerHTML = `<div class="small" style="text-align:center;">Inicie o turno para ver e executar as tarefas importadas.</div>`;
-            document.getElementById('executionPanel').classList.add('hidden');
-            return;
-        }
-
-        if (activeExecutions.length === 0) {
-            listEl.innerHTML = `<div class="small" style="text-align:center;">Não há turnos ativos.</div>`;
-            document.getElementById('executionPanel').classList.add('hidden');
-            return;
-        }
-        
-        activeExecutions.forEach(inst => {
-            const total = inst.tasks.length;
-            const done = inst.tasks.filter(t => t.completed).length;
-            const isSelected = executingActivity && executingActivity.instanceId === inst.instanceId;
-            
-            listEl.innerHTML += `
-                <div class="activity-card ${isSelected ? 'task-due' : ''}" onclick="selectExecutionInstance('${inst.instanceId}')" style="${isSelected ? 'transform: translateY(0); border-color:#F20587;' : ''}">
-                    <div style="font-weight:700;">Turno: ${new Date(inst.shiftStart).toLocaleString()}</div>
-                    <div class="small">Operador: ${inst.operator}</div>
-                    <div class="small">Progresso: ${done}/${total} (${((done/total)*100).toFixed(0)}%)</div>
-                </div>
-            `;
-        });
-    }
-
-    function selectExecutionInstance(instanceId) {
-        executingActivity = executions.find(e => e.instanceId === instanceId);
-        if (!executingActivity) return;
-        
-        const panel = document.getElementById('executionPanel');
-        const title = document.getElementById('executionTitle');
-
-        title.textContent = `Executando: Turno de ${new Date(executingActivity.shiftStart).toLocaleDateString()} (Operador: ${executingActivity.operator})`;
-        panel.classList.remove('hidden');
-        
-        updateProgress();
-        renderExecutionTasks();
-        renderExecutionInstances(); // Atualiza a lista para marcar o ativo
-    }
-
-    function updateProgress() {
-        if (!executingActivity) return;
-        const total = executingActivity.tasks.length;
-        const done = executingActivity.tasks.filter(t=>t.completed).length;
-        const progressPercent = total > 0 ? ((done / total) * 100).toFixed(0) : 0;
-        
-        const progressBar = document.getElementById('progressBar');
-        if (progressBar) {
-            progressBar.style.width = `${progressPercent}%`;
-            progressBar.textContent = `${progressPercent}%`;
-        }
-    }
-    
-    // NOVO FILTRO PARA ATIVIDADES CARREGADAS (ABA CADASTRO)
-    function filterActivities() {
-        renderActivityPreview();
-    }
-
-    function renderExecutionTasks() {
-        if (!executingActivity) return;
-        const tasksEl = document.getElementById('executionTasks');
-        tasksEl.innerHTML = '';
-
-        executingActivity.tasks.forEach(task => {
-            const isRunning = task._stopwatchRunning;
-            const isCompleted = task.completed;
-            // Usa task-due se estiver pendente E a flag 'due' estiver setada
-            const baseClass = `task-item ${isCompleted ? 'completed' : ''} ${task.due && !isCompleted ? 'task-due' : ''}`;
-
-            // Determina os botões
-            let actionButtons = '';
-            if (!isCompleted) {
-                if (isRunning) {
-                    actionButtons = `
-                        <button class="btn-small" style="background:#FFC107" onclick="pauseStopwatch('${task.id}')">Pausar</button>
-                        <button class="btn-small" style="background:#4CAF50" onclick="stopAndComplete('${task.id}', true)">Concluir (Sucesso)</button>
-                        <button class="btn-small" style="background:#f44336" onclick="stopAndComplete('${task.id}', false)">Concluir (Falha)</button>
-                    `;
-                } else {
-                    actionButtons = `
-                        <button class="btn-small" style="background:#F20587" onclick="initiateTaskWithOperatorID('${task.id}')">
-                            ${task.runtimeSeconds > 0 ? 'Retomar' : 'Iniciar'}
-                        </button>
-                    `;
-                }
-            }
-            
-            // NOVO RENDER: Exibe tempo decorrido e tempo previsto
-            const runtimeDisplay = `
-                <div id="timer-${task.id}" class="time-display">
-                    <span class="elapsed">Decorrido: ${formatSeconds(task.runtimeSeconds || 0)}</span>
-                    <span class="target">Previsão: ${escapeHtml(task['T + (hh:mm)'])}</span>
-                </div>
-            `;
-
-            const statusBadge = isCompleted ? `<span class="success-badge ${task.success ? 'yes' : 'no'}">${task.success ? 'CONCLUÍDA' : 'FALHA'}</span>` :	
-                                             isRunning ? `<span class="success-badge" style="background:#FFC107">EXECUTANDO</span>` :	
-                                                         `<span class="success-badge" style="background:#3F3E59">PENDENTE</span>`;
-
-            const photosPreview = task.photos.map(p => `<img src="${p}" class="img-preview" style="display:inline-block; margin-right:5px; max-width:80px; max-height:60px;">`).join('');
-
-            // Se estiver concluída, mostramos a observação e as fotos tiradas
-            const observationAndEvidence = isCompleted ? `
-                <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
-                    <label style="color:#F0F0F2;">Observação Registrada:</label>
-                    <div class="small" style="border: 1px dashed #5A587A; padding: 8px; border-radius: 4px; color:#F0F0F2;">${escapeHtml(task.observation || 'Nenhuma observação.')}</div>
-                    <label style="color:#F0F0F2; margin-top: 8px;">Evidências:</label>
-                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">${photosPreview}</div>
-                </div>
-            ` : '';
-
-
-            tasksEl.innerHTML += `
-                <div class="${baseClass}">
-                    <div class="task-header">
-                        <div>
-                            <h4 style="margin-bottom:4px;">${escapeHtml(task['Event / Action'])}</h4>
-                            <div class="small">Operador: ${task.operatorTask || 'N/A'}</div>
-                            <div class="small">${escapeHtml(task.Event)} | Proc. ID: ${escapeHtml(task['Proc. ID'])}</div>
-                            <div class="small">Critério: ${escapeHtml(task['Key Acceptance Criteria'])}</div>
-                            <div class="small" style="margin-top:4px;"><strong>Horário Previsto:</strong> ${escapeHtml(task['T + (hh:mm)'])} ${task.due && !isCompleted ? '<span style="color:#FFD54F; font-weight:700;">(ATRASADA)</span>' : ''}</div>
-                        </div>
-                        <div>${runtimeDisplay}</div>
-                    </div>
-                    
-                    ${observationAndEvidence}
-
-                    <div class="btn-group">
-                        ${actionButtons}
-                        ${statusBadge}	
-                    </div>
-                </div>
-            `;
-        });
-    }
-
-
-    function updateExecutionTaskUI(taskId) {
-        // Para renderizar corretamente o tempo, fotos e status atualizado
-        renderExecutionTasks();
-    }
-
-    // ==================== FOTOS E ZIP ====================
-
-    // A função addPhotosToEvidenceModal foi movida e corrigida acima.
-
-    async function downloadAllImagesZip() {
-        if (executions.length === 0) return showNotification('Não há execuções para gerar ZIP.', 2000);
-
-        const zip = new JSZip();
-        let fileCount = 0;
-
-        executions.forEach(inst => {
-            inst.tasks.forEach(task => {
-                task.photos.forEach((dataURL, index) => {
-                    const base64Data = dataURL.split(',')[1];
-                    const fileName = `${inst.operator}_${inst.instanceId.split('-')[1]}_${task.id.split('-')[2]}_${index + 1}.png`;
-                    zip.file(fileName, base64Data, { base64: true });
-                    fileCount++;
-                });
-            });
-        });
-
-        if (fileCount === 0) return showNotification('Nenhuma imagem registrada para download.', 2000);
-
-        showNotification(`Gerando ZIP com ${fileCount} imagens...`, 2000);
-        const content = await zip.generateAsync({ type: "blob" });
-        const date = new Date().toISOString().slice(0, 10);
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(content);
-        a.download = `Evidencias_DITL_${date}.zip`;
-        a.click();
-        URL.revokeObjectURL(a.href);	
-        showNotification('Download do ZIP concluído!', 2000);
-    }
-
-    // ==================== PARSER DE XLSX / CSV ====================
-
-    let parsedData = [];
-    let headerRow = [];
-
-    function onFileSelected(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            
-            parsedData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-            if (parsedData.length === 0) return showNotification('Arquivo vazio ou inválido.', 3000);
-            
-            headerRow = parsedData.shift(); // Primeira linha é o cabeçalho
-            
-            setupMappingModal();
-        };
-        reader.readAsArrayBuffer(file);
-    }
-
-    function setupMappingModal() {
-        const modal = document.getElementById('mappingModal');
-        const requiredMaps = ['mapTime', 'mapProc', 'mapEvent', 'mapAction', 'mapAcceptance'];
-        
-        // Limpa as opções anteriores
-        requiredMaps.forEach(id => {
-             document.getElementById(id).innerHTML = '';
-        });
-
-        // Preenche todos os <select> com as colunas do arquivo
-        headerRow.forEach((col, index) => {
-            requiredMaps.forEach(id => {
-                const selectEl = document.getElementById(id);
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = col;
-                selectEl.appendChild(option);
-                
-                // Tenta pré-selecionar baseado no nome da coluna
-                if (col.includes('T +')) selectEl.value = index;
-                if (col.includes('Proc.')) selectEl.value = index;
-                if (col.includes('Event / Action')) selectEl.value = index;
-                if (col.includes('Criteria')) selectEl.value = index;
-            });
-        });
-
-        // Exibe a prévia
-        let previewHtml = '<table><thead><tr>';
-        headerRow.forEach(h => previewHtml += `<th>${escapeHtml(h)}</th>`);
-        previewHtml += '</tr></thead><tbody>';
-        
-        parsedData.slice(0, 5).forEach(row => { // Primeiras 5 linhas
-            previewHtml += '<tr>';
-            row.forEach(cell => previewHtml += `<td>${escapeHtml(cell)}</td>`);
-            previewHtml += '</tr>';
-        });
-        previewHtml += '</tbody></table>';
-
-        document.getElementById('mappingPreview').innerHTML = previewHtml;
-        modal.classList.remove('hidden');
-    }
-
-    function confirmImport() {
-        const map = {
-            'T + (hh:mm)': document.getElementById('mapTime').value,
-            'Proc. ID': document.getElementById('mapProc').value,
-            'Event': document.getElementById('mapEvent').value,
-            'Event / Action': document.getElementById('mapAction').value,
-            'Key Acceptance Criteria': document.getElementById('mapAcceptance').value
-        };
-
-        activities = parsedData.map(row => ({
-            'T + (hh:mm)': row[map['T + (hh:mm)']] || '',
-            'Proc. ID': row[map['Proc. ID']] || '',
-            'Event': row[map['Event']] || '',
-            'Event / Action': row[map['Event / Action']] || '',
-            'Key Acceptance Criteria': row[map['Key Acceptance Criteria']] || ''
-            // Adicione outros campos necessários aqui
-        })).filter(t => t['Event / Action']); // Remove linhas vazias
-        
-        persistAll();
-        cancelMapping();
-
-        document.getElementById('loadedSummary').textContent = `${activities.length} atividades importadas com sucesso.`;
-        document.getElementById('loadedContainer').classList.remove('hidden');
-        updateStats();
-        renderActivityPreview();
-        showNotification('Planilha importada com sucesso!', 3000);
-        renderHeaderStatus(); // Atualiza o botão "Iniciar Turno" após importação
-    }
-
-    function cancelMapping() {
-        document.getElementById('mappingModal').classList.add('hidden');
-    }
-
-    /**
-     * @description Renderiza o preview das atividades importadas (template),	
-     * FILTRANDO pela barra de pesquisa
-     */
-    function renderActivityPreview() {
-        const listEl = document.getElementById('taskPreview');
-        const searchInput = document.getElementById('searchActivitiesInput');
-        const filterText = searchInput ? searchInput.value.toLowerCase() : '';
-        
-        const filteredActivities = activities.filter(t =>	
-            t['Event / Action'].toLowerCase().includes(filterText) ||
-            t['Proc. ID'].toLowerCase().includes(filterText) ||
-            filterText === ''
-        );
-
-        if (filteredActivities.length === 0) {
-            listEl.innerHTML = '<div class="small" style="text-align:center; padding: 12px;">Nenhuma atividade corresponde ao filtro.</div>';
-            return;
-        }
-        
-        // Exibindo como um template de lista simples
-        listEl.innerHTML = filteredActivities.map((t, index) => `
-            <div class="task-item" style="border-left-color:#F27EBE; transition:none; transform:none;">
-                <h4 style="margin-bottom:4px;">${index + 1}. ${escapeHtml(t['Event / Action'])}</h4>
-                <div class="small"><strong>Tempo Previsto:</strong> ${escapeHtml(t['T + (hh:mm)'])}</div>
-                <div class="small"><strong>Evento/Grupo:</strong> ${escapeHtml(t.Event)} | <strong>Proc. ID:</strong> ${escapeHtml(t['Proc. ID'])}</div>
-                <div class="small"><strong>Critério:</strong> ${escapeHtml(t['Key Acceptance Criteria'])}</div>
-            </div>
-        `).join('');
-        
-        document.getElementById('loadedSummary').textContent = `${filteredActivities.length} atividades visíveis (Total: ${activities.length}).`;
-    }
-
-
-    // ==================== LIMPEZA E EXPORTAÇÃO ====================
-
-    // Função para abrir o modal de confirmação de limpeza de dados
-    function clearAllData() {
-        document.getElementById('confirmClearDataModal').classList.remove('hidden');
-    }
-
-    // Função para fechar o modal de limpeza de dados
-    function closeClearDataConfirmation() {
-        document.getElementById('confirmClearDataModal').classList.add('hidden');
-    }
-
-    // Função que executa a limpeza total
-    function confirmClearAllData() {
-        closeClearDataConfirmation();
-        localStorage.clear();
-        location.reload();	
-    }
-
-    function downloadJSON() {
-        const data = {
-            currentUser: currentUser,
-            activities: activities,
-            executions: executions
-        };
-        const jsonString = JSON.stringify(data, null, 2);
-        const blob = new Blob([jsonString], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const date = new Date().toISOString().slice(0, 10);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `DITL_Backup_${date}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showNotification('Dados exportados para JSON.', 2000);
-    }
-
-
-    // ==================== RELATÓRIOS E PDF ====================
-
-    function renderAllReports() {
-        const reportListEl = document.getElementById('reportList');
-        reportListEl.innerHTML = '';
-        
-        // Lógica de Filtragem
-        const filterValue = document.getElementById('reportFilter').value;
-        
-        let filteredExecutions = executions.sort((a, b) => new Date(b.shiftStart) - new Date(a.shiftStart));
-
-        if (filterValue !== 'todos') {
-            filteredExecutions = filteredExecutions.filter(e => e.status === filterValue);
-        }
-
-        if (filteredExecutions.length === 0) {
-            reportListEl.innerHTML = `<div class="small" style="text-align:center;">Nenhum relatório encontrado com o filtro atual.</div>`;
-            return;
-        }
-
-        filteredExecutions.forEach(inst => {
-            const total = inst.tasks.length;
-            const done = inst.tasks.filter(t => t.completed).length;
-            const totalTime = inst.tasks.reduce((acc, t) => acc + (t.runtimeSeconds || 0), 0);
-            const totalTimeFormatted = formatSeconds(totalTime);
-            const isCompleted = inst.status === 'concluido';
-
-            reportListEl.innerHTML += `
-                <div class="task-item ${isCompleted ? 'completed' : ''}" style="cursor:pointer; padding:16px;" onclick="previewReport('${inst.instanceId}')">
-                    <div class="task-header">
-                        <div>
-                            <h4 style="margin-bottom:4px;">Relatório do Turno: ${new Date(inst.shiftStart).toLocaleDateString()}</h4>
-                            <div class="small">Operador: ${inst.operator}</div>
-                            <div class="small">Início: ${new Date(inst.shiftStart).toLocaleTimeString()} | Fim: ${inst.shiftEnd ? new Date(inst.shiftEnd).toLocaleTimeString() : 'Em andamento'}</div>
-                        </div>
-                        <div>
-                            <div class="small" style="font-weight:700; color:#F27EBE;">Total Executado: ${totalTimeFormatted}</div>
-                            <span class="success-badge ${isCompleted ? 'yes' : 'no'}" style="margin-top:4px;">${isCompleted ? 'CONCLUÍDO' : 'ATIVO'}</span>
-                        </div>
-                    </div>
-                    <div class="small" style="margin-top:8px;">Tarefas: ${done}/${total} concluídas.</div>
-                </div>
-            `;
-        });
-    }
-
-    // CORREÇÃO: Função atualizada para armazenar o ID da instância que será baixada.
-    function previewReport(instanceId) {
-        const inst = executions.find(e => e.instanceId === instanceId);
-        if (!inst) return;
-
-        // Armazena o ID da instância atual para uso na função de download
-        currentReportInstanceId = instanceId; 
-
-        const innerEl = document.getElementById('reportPreviewInner');
-        // Renderiza o HTML do relatório DENTRO do modal de preview
-        innerEl.innerHTML = generateReportHTML(inst);
-        
-        // CORREÇÃO CRÍTICA: Garantir que o modal aparece com Z-INDEX alto para captura
-        document.getElementById('reportPreviewModal').style.zIndex = '9999';	
-        document.getElementById('reportPreviewModal').classList.remove('hidden');
-    }
-
-    function closeReportPreview() {
-        document.getElementById('reportPreviewModal').classList.add('hidden');
-        document.getElementById('reportPreviewModal').style.zIndex = '4000'; // Volta ao normal
-        currentReportInstanceId = null; // Limpa o estado
-    }
-
-    function generateReportHTML(inst) {
-        const totalTime = inst.tasks.reduce((acc, t) => acc + (t.runtimeSeconds || 0), 0);
-        const totalTimeFormatted = formatSeconds(totalTime);
-
-        let html = `
-            <style>
-                /* Estilos incluídos diretamente para garantir que o html2canvas os capture */
-                .report-card { background: #fff; padding: 20px; border-radius: 8px; color: #000; font-family: sans-serif; }
-                .report-header h2 { font-size: 1.2rem; color: #F20587; }
-                .report-info { margin-bottom: 12px; font-size: 0.9rem; }
-                .report-task { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 6px; }
-                .task-title { font-weight: bold; color: #333; }
-                .evidence-img { max-width: 100px; max-height: 80px; margin-right: 5px; border: 1px solid #eee; object-fit: cover; }
-            </style>
-            <div class="report-card">
-            <div class="report-header" style="text-align:center;">
-                <h2>RELATÓRIO DE EXECUÇÃO DITL</h2>
-                <p>Sistema de Automação de Tarefas de Satélite</p>
-            </div>
-            <div class="report-info">
-                <p><strong>Operador:</strong> ${escapeHtml(inst.operator)}</p>
-                <p><strong>Turno Início:</strong> ${new Date(inst.shiftStart).toLocaleString()}</p>
-                <p><strong>Turno Fim:</strong> ${inst.shiftEnd ? new Date(inst.shiftEnd).toLocaleString() : 'Em andamento'}</p>
-                <p><strong>Tempo Total Executado:</strong> ${totalTimeFormatted}</p>
-            </div>
-            <h3>Atividades Registradas:</h3>
-            <hr style="border: 1px solid #ccc; margin-bottom: 10px;">
-        `;
-
-        inst.tasks.forEach(task => {
-            const photosHtml = task.photos.map(p => `<img src="${p}" class="evidence-img">`).join('');
-            const taskStatus = task.completed ? (task.success ? 'SUCESSO' : 'FALHA') : 'NÃO CONCLUÍDA';
-
-            html += `
-                <div class="report-task">
-                    <div class="task-title">${escapeHtml(task['Event / Action'])}</div>
-                    <p><strong>Status:</strong> ${taskStatus} (Tempo: ${formatSeconds(task.runtimeSeconds)})</p>
-                    <p><strong>Operador (Tarefa):</strong> ${escapeHtml(task.operatorTask || 'N/A')}</p>
-                    <p><strong>Concluído em:</strong> ${task.completedAt ? new Date(task.completedAt).toLocaleTimeString() : 'N/A'}</p>
-                    <p><strong>Observação:</strong> ${escapeHtml(task.observation || 'Nenhuma')}</p>
-                    <p><strong>Evidências:</strong></p>
-                    <div style="display: flex; flex-wrap: wrap;">${photosHtml}</div>
-                </div>
-            `;
-        });
-        
-        html += `</div>`; // Fecha a div report-card
-
-        return html;
-    }
-
-    // CORREÇÃO CRÍTICA: Regenera o HTML em um container invisível antes de gerar o PDF
-    async function downloadReportPDFFromPreview() {
-        if (!currentReportInstanceId) {
-            closeReportPreview(); // Se o estado estiver inconsistente, apenas fecha
-            return; 
-        }
-
-        const inst = executions.find(e => e.instanceId === currentReportInstanceId);
-        if (!inst) {
-            closeReportPreview();
-            return;
-        }
-        
-        // 1. Cria e anexa um container temporário e invisível para captura
-        const tempContainer = document.createElement('div');
-        tempContainer.innerHTML = generateReportHTML(inst);
-        tempContainer.style.width = '210mm'; // Define largura para A4
-        tempContainer.style.padding = '10mm';
-        tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '-9999px'; // Move para fora da tela
-        document.body.appendChild(tempContainer);
-
-        const date = new Date(inst.shiftStart).toISOString().slice(0, 10);
-        
-        // 2. Gera o PDF do container temporário
-        await generatePdfFromElement(tempContainer, `Relatorio_Turno_${inst.operator}_${date}`);
-        
-        // 3. Limpa o DOM e o estado
-        document.body.removeChild(tempContainer);
-        showNotification('PDF do Relatório individual gerado!', 3000);
-        closeReportPreview(); // Fecha o modal após o download
-    }
-
-
-    async function generateAllReportsPDF() {
-        // Usa apenas relatórios CONCLUÍDOS
-        const instCompleted = executions.filter(e => e.status === 'concluido');
-        if (instCompleted.length === 0) return showNotification('Nenhum turno concluído para gerar PDF consolidado.', 3000);
-
-        // Cria um container temporário para todos os relatórios
-        const tempContainer = document.createElement('div');
-        tempContainer.style.width = '210mm'; // Tamanho A4
-        tempContainer.style.padding = '10mm';
-
-        instCompleted.forEach(inst => {
-            const reportHtml = generateReportHTML(inst);
-            const reportDiv = document.createElement('div');
-            reportDiv.innerHTML = reportHtml;
-            tempContainer.appendChild(reportDiv);
-            
-            // Adiciona uma quebra de página (para jsPDF)
-            if (inst !== instCompleted[instCompleted.length - 1]) {
-                const hr = document.createElement('hr');
-                hr.style.pageBreakAfter = 'always';
-                tempContainer.appendChild(hr);
-            }
-        });
-
-        document.body.appendChild(tempContainer);
-        
-        // Gera o PDF consolidado
-        await generatePdfFromElement(tempContainer, `Relatorio_Consolidado_DITL_Concluidos_${new Date().toISOString().slice(0, 10)}`);
-        
-        document.body.removeChild(tempContainer); // Remove o container temporário
-        showNotification('PDF Consolidado (Concluídos) gerado com sucesso.', 3000);
-    }
-    
-    async function generateFinalReportPDF() {
-        // Usa TODOS os relatórios
-        const allExecutions = executions;	
-        if (allExecutions.length === 0) return showNotification('Nenhuma execução registrada para Relatório Final.', 3000);
-
-        // Cria um container temporário para todos os relatórios
-        const tempContainer = document.createElement('div');
-        tempContainer.style.width = '210mm'; // Tamanho A4
-        tempContainer.style.padding = '10mm';
-
-        allExecutions.forEach(inst => {
-            const reportHtml = generateReportHTML(inst);
-            const reportDiv = document.createElement('div');
-            reportDiv.innerHTML = reportHtml;
-            tempContainer.appendChild(reportDiv);
-            
-            // Adiciona uma quebra de página (para jsPDF)
-            if (inst !== allExecutions[allExecutions.length - 1]) {
-                const hr = document.createElement('hr');
-                hr.style.pageBreakAfter = 'always';
-                tempContainer.appendChild(hr);
-            }
-        });
-
-        document.body.appendChild(tempContainer);
-        
-        // Gera o PDF consolidado
-        await generatePdfFromElement(tempContainer, `Relatorio_Consolidado_DITL_FINAL_COMPLETO_${new Date().toISOString().slice(0, 10)}`);
-        
-        document.body.removeChild(tempContainer); // Remove o container temporário
-        showNotification('Relatório Final (Completo) gerado com sucesso.', 3000);
-    }
-
-
-    /**
-     * @description Função utilitária para gerar PDF (usa window.jspdf.jsPDF)
-     */
-    async function generatePdfFromElement(element, filename) {
-        showNotification('Gerando PDF... Aguarde.', 3000);
-        const { jsPDF } = window.jspdf;
-        
-        // CORREÇÃO: Utiliza o scrollY para capturar o elemento completo, mesmo fora da tela
-        const canvas = await html2canvas(element, {	
-            scale: 2,
-            scrollY: -window.scrollY
-        });	
-        
-        const imgData = canvas.toDataURL('image/png');
-        
-        const imgWidth = 210; // A4 width in mm
-        const pageHeight = 295; // A4 height in mm
-        const imgHeight = canvas.height * imgWidth / canvas.width;
-        let heightLeft = imgHeight;
-        
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        let position = 0;
-        
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-        
-        while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-        }
-        
-        pdf.save(`${filename}.pdf`);
-    }
-
-
-    // ==================== CHECKER E ALERTAS DE PRAZO ====================
-
-    /**
-     * @description Verifica se o tempo previsto (T + (hh:mm)) já passou,	
-     * alertando visualmente o operador se a tarefa estiver pendente.
-     */
-    function checkDueTasks() {
-        if (!executingActivity || !localStorage.getItem('shiftActiveISO')) return;
-
-        const now = new Date();
-        const shiftStart = new Date(executingActivity.shiftStart);
-        // Tempo decorrido do turno em segundos
-        const elapsedShiftSeconds = Math.floor((now.getTime() - shiftStart.getTime()) / 1000);
-
-        let changed = false;
-
-        executingActivity.tasks.forEach(t => {
-            if (!t.completed && t.dueSeconds !== null) {
-                // Se o tempo total do turno for maior que o tempo de prazo da tarefa
-                if (elapsedShiftSeconds > t.dueSeconds) {
-                    if (!t.due) {
-                        t.due = true; // Marca como atrasada
-                        changed = true;
-                        showNotification(`ATENÇÃO: Tarefa "${t['Event / Action']}" está atrasada!`, 5000);
-                    }
-                } else {
-                    if (t.due) {
-                        t.due = false; // Se por algum motivo voltou no tempo (improvável)
-                        changed = true;
-                    }
-                }
-            }
-        });
-
-        if (changed) {
-            persistAll();
-            renderExecutionTasks();
-        }
-    }
-
-    /**
-     * @description Inicia o Agendador de tarefas programadas.
-     */
-    function startScheduledChecker() {
-        if (dueCheckerInterval) clearInterval(dueCheckerInterval);
-        
-        // Roda a verificação a cada 30 segundos
-        dueCheckerInterval = setInterval(checkDueTasks, 30000);	
-    }
-</script>
+    <script src="script.js"></script>
 </body>
 </html>
