@@ -331,7 +331,7 @@ function openEndShiftConfirmation() {
         return;
     }
 
-    document.getElementById('pendingTaskMessage').innerHTML = `Ainda há **${nonCompleted} tarefas** não concluídas. Deseja encerrar o turno e gerar o relatório mesmo assim?`;
+    document.getElementById('pendingTaskMessage').innerHTML = `Ainda há ${nonCompleted} tarefas não concluídas. Deseja encerrar o turno e gerar o relatório mesmo assim?`;
     document.getElementById('confirmEndShiftModal').classList.remove('hidden');
 }
 
