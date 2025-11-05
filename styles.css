@@ -103,7 +103,7 @@ h1 {
     flex-shrink: 0;
     margin-left: auto;
     /* Ajustamos o padding para centralizar visualmente o sino no header */
-    padding: 10px 20px 10px 20px; 
+    padding: 10px 20px 10px 20px;	
 }
 #notificationIconContainer i {
     font-size: 28px;
@@ -111,13 +111,13 @@ h1 {
     transition: color 0.2s;
 }
 /* ESTILO NOVO/CORRIGIDO: BADGE DE NOTIFICAÇÃO CIRCULAR */
-.notification-badge { 
-    display: flex; 
+.notification-badge {	
+    display: flex;	
     position: absolute;
     
     /* POSICIONAMENTO: AJUSTADO PARA O CANTO SUPERIOR DIREITO DO SINO */
-    top: 5px; 
-    right: 5px; 
+    top: 5px;	
+    right: 5px;	
     
     /* ESTILO */
     background: #F20587; /* Cor rosa primária */
@@ -127,15 +127,15 @@ h1 {
     line-height: 1;
     
     /* FORMA E TAMANHO */
-    min-width: 18px; 
-    height: 18px; 
+    min-width: 18px;	
+    height: 18px;	
     border-radius: 50%;
     align-items: center;
     justify-content: center;
     padding: 2px;
     
     /* BORDA (opcional, para visual de "flutuar") */
-    box-shadow: 0 0 0 2px #F20587; 
+    box-shadow: 0 0 0 2px #F20587;	
 }
 
 
@@ -173,15 +173,15 @@ h1 {
     background: #3F3E59;
     padding: 16px;
     border-radius: 12px;
-    margin-bottom: 0; 
-    min-width: 250px; 
+    margin-bottom: 0;	
+    min-width: 250px;	
     flex-shrink: 0;
 }
 .export-card h2 { font-size: 1.2rem; }
 
 
 /* CONTROLE DAS ABAS (TABS)
-   ==================== */
+  ==================== */
 .tab-content {
     display: none; /* Esconde todas as seções por padrão */
 }
@@ -192,10 +192,10 @@ h1 {
 
 /* TABS & BUTTONS */
  .tabs {
-  display: flex;
-  flex-direction: column;	
-  gap: 10px;
-  margin-bottom: 20px;
+ display: flex;
+ flex-direction: column;	
+ gap: 10px;
+ margin-bottom: 20px;
  }
 .tab-btn {
     padding: 10px 16px;
@@ -387,4 +387,33 @@ textarea {
     .sidebar { position: relative; height: auto; width: 100%; min-width: 100%; }
     .execution-summary-grid { flex-direction: column; }
     .execution-stats-container { grid-template-columns: 1fr; }
+}
+
+/* ====================
+   ESTILOS DO MODAL DE PREVIEW (CORRIGIDO)
+   ==================== */
+
+/* Este é o "cartão" do modal em si */
+#reportPreviewContent {
+    max-width: 900px;
+    width: 95%; /* Garante que não ultrapasse a tela em larguras menores */
+    max-height: 85vh; /* Limita a altura a 85% da tela */
+    display: flex;
+    flex-direction: column; /* Organiza botões e conteúdo verticalmente */
+    /* O fundo .report-card (escuro) é aplicado pela classe no HTML */
+}
+
+/* Este é o container INTERNO que terá o conteúdo e a rolagem */
+#reportPreviewInner {
+    overflow-y: auto; /* Adiciona scroll APENAS ao conteúdo do relatório */
+    padding: 15px;
+    background: #f0f0f2; /* Um fundo levemente diferente para a área de scroll */
+    border-radius: 6px;
+    color: #000; /* Garante que o texto dentro da preview seja preto */
+}
+
+/* A pré-visualização usa a classe .report-card de generateReportHTML.
+   Vamos garantir que ela se comporte bem dentro do #reportPreviewInner */
+#reportPreviewInner .report-card {
+    max-height: 100%;
 }

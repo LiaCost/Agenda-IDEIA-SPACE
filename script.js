@@ -11,8 +11,8 @@ let currentTaskToComplete = { taskId: null, success: null };
 let currentReportInstanceId = null;
 let notificationLog = JSON.parse(localStorage.getItem('notificationLog')) || [];
 let isNotificationPanelOpen = false;
-let parsedData = null; 
-let headerRow = null; 
+let parsedData = null;	
+let headerRow = null;	
 
 
 // ==================== PERSISTÊNCIA E INICIALIZAÇÃO ====================
@@ -934,7 +934,7 @@ function updateExecutionTaskUI(taskId) {
 
     let buttonsHtml = '';
     let statusText = '';
-    let statusColor = ''; 
+    let statusColor = '';	
     let elapsedText = '';
     let targetText = '';
     let elapsedColor = '';
@@ -1286,7 +1286,7 @@ function closeReportPreview() {
 }
 
 // ==================== FUNÇÕES DE GERAÇÃO DE HTML DE RELATÓRIO ====================
-// NOTA: Estas funções mantêm estilos HTML/CSS INLINE porque o JS-PDF e HTML2CANVAS 
+// NOTA: Estas funções mantêm estilos HTML/CSS INLINE porque o JS-PDF e HTML2CANVAS	
 // precisam dos estilos embutidos no elemento DOM para renderizar o PDF corretamente.
 
 function generateReportHTML(inst) {
@@ -1298,7 +1298,14 @@ function generateReportHTML(inst) {
             .report-card { background: #fff; padding: 20px; border-radius: 8px; color: #000; font-family: sans-serif; }
             .report-header h2 { font-size: 1.2rem; color: #F20587; }
             .report-info { margin-bottom: 12px; font-size: 0.9rem; }
-            .report-task { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 6px; }
+            .report-task { 
+                border: 1px solid #ccc; 
+                padding: 10px; 
+                margin-bottom: 10px; 
+                border-radius: 6px; 
+                page-break-inside: avoid; /* <-- CORREÇÃO AQUI */
+                break-inside: avoid; /* <-- CORREÇÃO AQUI */
+            }
             .task-title { font-weight: bold; color: #333; }
             .evidence-img { max-width: 100px; max-height: 80px; margin-right: 5px; border: 1px solid #eee; object-fit: cover; }
         </style>
@@ -1376,7 +1383,14 @@ function generateTaskReportHTML(task, inst) {
             .report-card { background: #fff; padding: 20px; border-radius: 8px; color: #000; font-family: sans-serif; }
             .report-header h2 { font-size: 1.2rem; color: #F20587; }
             .report-info { margin-bottom: 12px; font-size: 0.9rem; }
-            .report-task { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 6px; }
+            .report-task { 
+                border: 1px solid #ccc; 
+                padding: 10px; 
+                margin-bottom: 10px; 
+                border-radius: 6px; 
+                page-break-inside: avoid; /* <-- CORREÇÃO AQUI */
+                break-inside: avoid; /* <-- CORREÇÃO AQUI */
+            }
             .task-title { font-weight: bold; color: #333; }
             .evidence-img { max-width: 100px; max-height: 80px; margin-right: 5px; border: 1px solid #eee; object-fit: cover; }
         </style>
@@ -1407,6 +1421,7 @@ function generateTaskReportHTML(task, inst) {
         </div>
     `;
 }
+
 
 async function downloadTaskPDF(taskId) {
     if (!executingActivity) return showNotification('Nenhum turno ativo.', 3000);
@@ -1445,6 +1460,9 @@ async function downloadTaskPDF(taskId) {
     }
 }
 
+/**
+ * @description [FUNÇÃO REVERTIDA PARA A VERSÃO ORIGINAL]
+ */
 function downloadReportPDFFromPreview() {
     if (!currentReportInstanceId) {
         closeReportPreview();
@@ -1458,7 +1476,7 @@ function downloadReportPDFFromPreview() {
     }
     
     const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = generateReportHTML(inst);
+    tempContainer.innerHTML = generateReportHTML(inst); // Esta função agora tem o CSS corrigido
     // Estilos necessários para posicionamento temporário fora da tela
     tempContainer.style.width = '210mm';
     tempContainer.style.padding = '10mm';
@@ -1476,6 +1494,9 @@ function downloadReportPDFFromPreview() {
 }
 
 
+/**
+ * @description [FUNÇÃO REVERTIDA PARA A VERSÃO ORIGINAL]
+ */
 async function generateFinalReportPDF() {
     const allExecutions = executions;	
     if (allExecutions.length === 0) return showNotification('Nenhuma execução registrada para Relatório Final.', 3000);
@@ -1486,14 +1507,14 @@ async function generateFinalReportPDF() {
     tempContainer.style.padding = '10mm';
 
     allExecutions.forEach(inst => {
-        const reportHtml = generateReportHTML(inst);
+        const reportHtml = generateReportHTML(inst); // Esta função agora tem o CSS corrigido
         const reportDiv = document.createElement('div');
         reportDiv.innerHTML = reportHtml;
         tempContainer.appendChild(reportDiv);
         
         if (inst !== allExecutions[allExecutions.length - 1]) {
             const hr = document.createElement('hr');
-            hr.style.pageBreakAfter = 'always';
+            hr.style.pageBreakAfter = 'always'; // Isso força uma quebra entre TURNOS
             tempContainer.appendChild(hr);
         }
     });
