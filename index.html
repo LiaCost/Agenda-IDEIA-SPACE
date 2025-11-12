@@ -43,13 +43,33 @@
                 <div class="turn-controls">
                     <button id="btnStartShift" onclick="startShift()" disabled>Iniciar Turno</button>
                     <button id="btnEndShift" onclick="endShift()">Encerrar Turno</button>
+                </div>
+
+                <div id="shiftStatusContainer">
                     <div id="shiftStatus" class="small">Turno encerrado ou não iniciado.</div>
                 </div>
 
-                <div id="notificationIconContainer" onclick="toggleNotificationPanel()">
-                    <i class="bi bi-bell-fill"></i>
-                    <span class="notification-badge" id="notificationCount">0</span>
+                <div class="header-right-group">
+                    
+                    <div id="masterClockContainer">
+                        <div class="clock-display">
+                            <div class="small">Tempo Decorrido</div>
+                            <div id="elapsedClockTime" class="clock-time">--:--:--</div>
+                        </div>
+                        
+                        <div class="clock-display">
+                            <div class="small">Tempo Restante (DITL)</div>
+                            <div id="masterClockTime" class="clock-time">--:--:--</div>
+                        </div>
+                    </div>
+                    
+                    <div id="notificationIconContainer" onclick="toggleNotificationPanel()">
+                        <i class="bi bi-bell-fill"></i>
+                        <span class="notification-badge" id="notificationCount">0</span>
+                    </div>
+
                 </div>
+
             </div>
 
             <div id="cadastro" class="tab-content active">
@@ -100,7 +120,7 @@
                         <h2 class="mb-10" style="font-size: 1.2rem;">Exportação de Dados (Backup)</h2>
                         <div class="btn-group">
                             <button class="btn-small" onclick="downloadJSON()">Exportar JSON</button>
-                            <button class="btn-small" onclick="downloadAllImagesZip()">Baixar imagens (ZIP)</button>	
+                            <button class="btn-small" onclick="downloadAllImagesZip()">Baixar imagens (ZIP)</button>    
                         </div>
                     </div>
                     
@@ -188,55 +208,15 @@
         </div>
     </div>
 
-    <div id="startTaskModal" class="hidden" aria-hidden="true">
-        <div class="modal-card">
-            <h3>Iniciar tarefa</h3>
-            <p id="taskNameDisplay"></p>
-
-            <div class="form-group">
-                <label for="modalOperatorIdInput">ID do operador</label>
-                <input type="text" id="modalOperatorIdInput" placeholder="Ex: Lola" required>
-            </div>
-
-            <div class="form-group">
-                <label for="timeModeSelect">Modo de cronometragem</label>
-                <select id="timeModeSelect" onchange="updateTimeModeDisplay()">
-                    <option value="manual">Manual (Cronômetro normal)</option>
-                    <option value="countdown">Contagem regressiva (Duração HH:MM)</option>
-                    <option value="scheduled">Horário programado (Janela de tempo)</option>
-                </select>
-            </div>
-
-            <div class="form-group hidden" id="countdownTimeGroup">
-                <label for="countdownTimeInput">Duração máxima (hh:mm)</label>
-                <input type="time" id="countdownTimeInput" value="00:10" step="60" required>
-            </div>
-
-            <div class="form-group hidden" id="scheduledTimeGroup">
-                <div id="scheduledTimeInputs">
-                    <div>
-                        <label for="scheduledAlertTimeInput">Hora de início do alerta (hh:mm)</label>
-                        <input type="time" id="scheduledAlertTimeInput" value="12:30" step="60" required>
-                    </div>
-                    <div>
-                        <label for="scheduledLimitTimeInput">Hora limite (hh:mm)</label>
-                        <input type="time" id="scheduledLimitTimeInput" value="13:30" step="60" required>
-                    </div>
-                </div>
-                <div class="small mt-8" style="opacity: 0.8;">O alerta será disparado no 1º horário. O timer irá contar até o 2º horário.</div>
-            </div>
-            
-            <div class="btn-group" style="justify-content: flex-end;">
-                <button class="button btn-secondary" onclick="closeTaskStartModal()">Cancelar</button>
-                <button class="button" style="background:#4CAF50;" id="confirmStartTaskButton" onclick="confirmTaskStart()">Confirmar e iniciar</button>
-            </div>
-        </div>
-    </div>
-
     <div id="evidenceModal" class="hidden" aria-hidden="true">
         <div class="modal-card">
             <h3>Evidências da atividade</h3>
             <p id="evidenceModalTaskName" class="mb-15 fw-700" style="color: #F27EBE;"></p>
+
+            <div class="form-group">
+                <label for="evidenceModalOperatorId">ID do Operador (Obrigatório)</label>
+                <input type="text" id="evidenceModalOperatorId" placeholder="Ex: Lola" required>
+            </div>
 
             <div class="form-group">
                 <label for="evidenceModalObservation">Observação da tarefa (Obrigatório)</label>
@@ -290,6 +270,16 @@
         </div>
     </div>
 
+    <div id="nextTaskModal" class="hidden" aria-hidden="true">
+        <div class="modal-card" style="background: #FFD54F; color: #000;">
+            <h3 style="color: #000;">ATENÇÃO: Próxima Tarefa</h3>
+            <p class="mb-15">A tarefa atual está terminando. Prepare-se para:</p>
+            <h2 id="nextTaskNameDisplay" style="color: #F20587; margin-bottom: 20px;">[Nome da Próxima Tarefa]</h2>
+            <div class="btn-group" style="justify-content: center;">
+                <button class="button" style="background:#080726; color:#fff;" onclick="hideNextTaskBanner()">OK (Entendido)</button>
+            </div>
+        </div>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
