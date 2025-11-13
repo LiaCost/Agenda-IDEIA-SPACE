@@ -281,5 +281,63 @@
         </div>
     </div>
     <script src="script.js"></script>
+<script>
+window.generatePdfFromElement = async function (element, filename) {
+
+    showNotification('Gerando PDF...', 3000); // aviso
+
+    // guardar estado original
+    const originalTransform = element.style.transform;
+    const originalWidth = element.style.width;
+
+    // aumenta o tamanho do conteúdo
+    element.style.transform = "scale(1.35)";
+    element.style.transformOrigin = "top left";
+    element.style.width = "155mm";
+
+    await new Promise(r => setTimeout(r, 120)); // espera renderizar
+
+    // captura em alta qualidade
+    const canvas = await html2canvas(element, {
+        scale: 3,
+        useCORS: true,
+        scrollY: -window.scrollY
+    });
+
+    // volta ao normal
+    element.style.transform = originalTransform;
+    element.style.width = originalWidth;
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jspdf.jsPDF("p", "mm", "a4");
+
+    // tamanho da página
+    const pageWidth = 210;
+    const pageHeight = 295;
+
+    // ajusta imagem no PDF
+    const imgWidth = 210;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    // primeira página
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, null, "FAST");
+
+    heightLeft -= pageHeight;
+
+    // páginas extras
+    while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, null, "FAST");
+        heightLeft -= pageHeight;
+    }
+
+    pdf.save(${filename}.pdf); // salva PDF
+};
+</script>
+    
 </body>
 </html>
