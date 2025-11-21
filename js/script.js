@@ -14,7 +14,7 @@ let isNotificationPanelOpen = false; // Flag para controlar o estado do painel d
 let parsedData = null; // Armazena os dados da planilha antes do mapeamento.
 let headerRow = null; // Armazena a linha de cabeçalho da planilha importada.
 
-// ==================== [ATUALIZAÇÃO DE COLEGA] FUNÇÃO DE GERAÇÃO DE PDF DE ALTA QUALIDADE (COM FALLBACK) ====================
+// ==================== FUNÇÃO DE GERAÇÃO DE PDF DE ALTA QUALIDADE (COM FALLBACK) ====================
 
 // Armazena a função original se ela existir. No seu caso, a função original está mais abaixo no arquivo,
 // mas vamos defini-la como uma função vazia aqui para evitar erros de referência antes da inicialização.
@@ -500,6 +500,65 @@ function startShift() {
     } else {
         showNotification('Turno iniciado! Nenhuma tarefa encontrada para iniciar.', 3000, 'warning');
     }
+}
+
+/**
+ * @description Abre o modal de confirmação para reiniciar o turno.
+ */
+function openResetShiftConfirmation() {
+    if (!executingActivity || !localStorage.getItem('shiftActiveISO')) {
+        showNotification('Nenhum turno ativo para reiniciar.', 3000);
+        return;
+    }
+    document.getElementById('confirmResetShiftModal').classList.remove('hidden');
+}
+
+/**
+ * @description Fecha o modal de confirmação para reiniciar o turno.
+ */
+function closeResetShiftConfirmation() {
+    document.getElementById('confirmResetShiftModal').classList.add('hidden');
+}
+
+/**
+ * @description Reinicia o turno ATIVO atual (deleta a instância e inicia uma nova).
+ * Preserva as atividades (DITL) importadas.
+ */
+function confirmResetShift() {
+    closeResetShiftConfirmation();
+    
+    if (executingActivity === null) return;
+
+    // 1. Pausa e limpa o relógio mestre e cronômetros
+    executingActivity.tasks.forEach(task => {
+        if (task._stopwatchRunning) {
+            pauseStopwatch(task.id); 
+        }
+    });
+    if (masterClockInterval) clearInterval(masterClockInterval);
+    masterClockInterval = null;
+    
+    // 2. Remove a instância de execução ATIVA do array 'executions'
+    const index = executions.findIndex(e => e.instanceId === executingActivity.instanceId);
+    if (index !== -1) {
+        executions.splice(index, 1); // Remove a instância
+    }
+
+    // 3. Limpa o estado ativo global
+    localStorage.removeItem('shiftActiveISO');
+    executingActivity = null;
+    persistAll();
+    
+    // 4. Inicia um novo turno automaticamente com as mesmas atividades importadas
+    startShift(); 
+    showNotification('Turno reiniciado com sucesso! Uma nova instância de execução foi criada.', 5000, 'warning');
+}
+
+/**
+ * @description Chama a função para abrir o modal de confirmação de reinício.
+ */
+function resetCurrentShift() {
+    openResetShiftConfirmation();
 }
 
 /**

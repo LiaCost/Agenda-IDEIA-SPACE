@@ -41,8 +41,10 @@
             <div class="top-header">
                 
                 <div class="turn-controls">
-                    <button id="btnStartShift" onclick="startShift()" disabled>Iniciar Turno</button>
-                    <button id="btnEndShift" onclick="endShift()">Encerrar Turno</button>
+                    <button id="btnStartShift" onclick="startShift()" disabled>Iniciar turno</button>
+                    <button id="btnResetShift" onclick="resetCurrentShift()">Reiniciar turno</button>
+                    <button id="btnEndShift" onclick="endShift()">Encerrar turno</button>
+                   
                 </div>
 
                 <div id="shiftStatusContainer">
@@ -280,10 +282,18 @@
             </div>
         </div>
     </div>
+
+    <div id="confirmResetShiftModal" class="hidden" aria-hidden="true">
+    <div class="modal-card">
+        <h3>ATENÇÃO: Reiniciar turno!</h3>
+        <p class="mb-15">Você tem certeza que deseja <b>reiniciar o turno atual</b>? O progresso e a instância de execução atual serão <b>apagados</b> e um novo turno será iniciado com as atividades da planilha.</p>
+        
+        <div class="btn-group">
+            <button class="button btn-secondary" onclick="closeResetShiftConfirmation()">Não, cancelar</button>
+            <button class="button" style="background:#f44336;" onclick="confirmResetShift()">Sim, reiniciar</button>
+        </div>
+    </div>
+</div>
 </body>
     <script src="js/script.js"></script>
-
-
-   
-
 </html>
