@@ -43,7 +43,9 @@ const originalGeneratePdfFromElement = async function (element, filename) {
             // 1. Aplica o scale e largura para melhor qualidade do html2canvas
             element.style.transform = "scale(1.35)";
             element.style.transformOrigin = "top left";
-            element.style.width = "155mm";
+            
+            // CORREÇÃO: Força a largura para 155mm, que funciona bem para A4 no html2canvas
+            element.style.width = "155mm"; 
 
             await new Promise(r => setTimeout(r, 120)); // Aguarda o DOM renderizar o scale
 
@@ -525,6 +527,14 @@ function openResetShiftConfirmation() {
  */
 function closeResetShiftConfirmation() {
     document.getElementById('confirmResetShiftModal').classList.add('hidden');
+    
+    // Repõe a função original do botão de confirmação
+    const confirmButton = document.getElementById('confirmResetShiftModal').querySelector('button[onclick*="confirmResetTask"]');
+    if (confirmButton) {
+        confirmButton.setAttribute('onclick', `confirmResetShift()`);
+        confirmButton.textContent = 'Sim, reiniciar';
+        confirmButton.style.background = '#f44336'; 
+    }
 }
 
 /**
@@ -666,6 +676,7 @@ function confirmClearAllData() {
     location.reload(); 
 }
 
+
 // ==================== RELÓGIO MESTRE (ATUALIZADO) ====================
 
 /**
@@ -731,9 +742,10 @@ function startStopwatch(taskId) {
     if (!task) return;
     // Verifica se outra tarefa já está em execução
     const currentlyRunning = executingActivity.tasks.find(t => t._stopwatchRunning);
+    // CORREÇÃO: Pausa explicitamente a tarefa que está rodando, se for outra.
     if (currentlyRunning && currentlyRunning.id !== taskId) {
-        showNotification(`A tarefa '${currentlyRunning['Event / Action']}' já está em execução. Pause-a primeiro.`, 5000, 'warning');
-        return;
+        pauseStopwatch(currentlyRunning.id);
+        // Não precisa de notificação, pois a nova tarefa será iniciada logo em seguida.
     }
     if (task._stopwatchRunning) { 
         showNotification('Cronómetro já em execução para esta tarefa.'); 
@@ -881,6 +893,106 @@ function startAlertChecker() {
     if (alertCheckerInterval) clearInterval(alertCheckerInterval);
     alertCheckerInterval = setInterval(checkScheduledAlerts, 5000); 
 }
+
+// ==================== REINICIAR ATIVIDADE UNITÁRIA ====================
+
+/**
+ * @description Abre o modal de confirmação para reiniciar uma tarefa unitária.
+ * @param {string} taskId - O ID da tarefa a ser reiniciada.
+ */
+function openResetTaskConfirmation(taskId) {
+    const task = executingActivity.tasks.find(tt => tt.id === taskId);
+    if (!task) return;
+    
+    // Usamos o modal de Reiniciar Turno, mas adaptamos o conteúdo
+    const modal = document.getElementById('confirmResetShiftModal');
+    const titleEl = modal.querySelector('h3');
+    const messageEl = modal.querySelector('p');
+    const confirmButton = modal.querySelector('button[onclick*="confirmResetShift"]');
+
+    // Salva o ID da tarefa para uso posterior
+    modal.dataset.taskId = taskId;
+
+    // Define o conteúdo específico
+    titleEl.textContent = `ATENÇÃO: Reiniciar Tarefa '${task['Event / Action']}'!`;
+    messageEl.innerHTML = `Você tem certeza que deseja <b>reiniciar a tarefa</b>? O tempo de execução, status de conclusão, observações e evidências serão <b>apagados</b>.`;
+    
+    // Atualiza a função do botão de confirmação para chamar a função correta
+    confirmButton.setAttribute('onclick', `confirmResetTask('${taskId}')`);
+    confirmButton.textContent = 'Sim, Reiniciar Tarefa';
+
+    // Se estiver pausada, muda a cor do botão para o secundário (para diferenciar do reset de turno)
+    if (!task.completed) {
+         confirmButton.style.background = '#F27EBE'; 
+    } else {
+         confirmButton.style.background = '#f44336';
+    }
+
+
+    modal.classList.remove('hidden');
+}
+
+/**
+ * @description Confirma e executa o reset de uma tarefa unitária.
+ * @param {string} taskId - O ID da tarefa a ser reiniciada.
+ */
+function confirmResetTask(taskId) {
+    const task = executingActivity.tasks.find(tt => tt.id === taskId);
+    if (!task) return;
+
+    // 1. Zera o cronômetro (apaga o intervalo se estiver ativo)
+    if (stopwatchIntervals[taskId]) {
+        clearInterval(stopwatchIntervals[taskId]);
+        delete stopwatchIntervals[taskId];
+    }
+    
+    // 2. Reseta todos os campos de estado e dados de execução
+    task.status = 'pendente';
+    task.runtimeSeconds = 0;
+    task.completed = false;
+    task.success = null;
+    task.completedAt = null;
+    task.photos = []; 
+    task.operatorTask = '';
+    task.observation = '';
+    task.due = false;
+    task.alerted = false;
+    task._stopwatchRunning = false;
+    task._stopwatchStart = null;
+    task._nextTaskAlertShown = false;
+
+    persistAll();
+    
+    // 3. Fecha o modal e atualiza a interface
+    document.getElementById('confirmResetShiftModal').classList.add('hidden');
+    
+    // Repõe a função original do botão de confirmação do modal para o Reset de Turno
+    const confirmButton = document.getElementById('confirmResetShiftModal').querySelector('button[onclick*="confirmResetTask"]');
+    if (confirmButton) {
+        confirmButton.setAttribute('onclick', `confirmResetShift()`);
+        confirmButton.textContent = 'Sim, reiniciar';
+        confirmButton.style.background = '#f44336'; 
+    }
+
+    // NOVO: Pausar qualquer outra tarefa que esteja rodando (se houver)
+    const currentlyRunning = executingActivity.tasks.find(t => t._stopwatchRunning);
+    if (currentlyRunning && currentlyRunning.id !== taskId) {
+         pauseStopwatch(currentlyRunning.id); 
+    }
+    
+    // NOVO: Inicia a tarefa que acabou de ser resetada
+    startStopwatch(taskId);
+
+    // Remove a notificação de reinício (que estava causando confusão) e mostra a de início.
+    // showNotification(`A atividade '${task['Event / Action']}' foi reiniciada do zero.`, 4000, 'critical');
+    showNotification(`Atividade reiniciada: '${task['Event / Action']}'. Iniciando cronômetro.`, 4000, 'warning');
+
+    updateProgress();
+    renderExecutionTasks();
+    showNotification(`A atividade '${task['Event / Action']}' foi reiniciada do zero.`, 4000, 'critical');
+}
+
+// A função closeResetShiftConfirmation() já existe e pode ser reutilizada para fechar o modal.
 
 // ==================== MODAL DE EVIDÊNCIAS (MODIFICADO) ====================
 
@@ -1242,6 +1354,7 @@ function updateExecutionTaskUI(taskId) {
         buttonsHtml = `
             <button class="btn-small btn-secondary" disabled>Finalizado</button>
             <button class="btn-small" onclick="downloadTaskPDF('${task.id}')">PDF (Unitário)</button>
+            ${!task.success ? `<button class="btn-small" style="background:#f44336;" onclick="openResetTaskConfirmation('${task.id}')">Reiniciar Atividade</button>` : ''}
         `;
     } else if (isRunning) {
         statusText = 'EM EXECUÇÃO';
@@ -1258,6 +1371,7 @@ function updateExecutionTaskUI(taskId) {
             <button class="btn-small" onclick="startStopwatch('${task.id}')">Retomar</button>
             <button class="btn-small" style="background:#4CAF50" onclick="stopAndComplete('${task.id}', true)">SUCESSO</button>
             <button class="btn-small" style="background:#f44336" onclick="stopAndComplete('${task.id}', false)">FALHA</button>
+            <button class="btn-small btn-secondary" onclick="openResetTaskConfirmation('${task.id}')">Reiniciar do Zero</button>
         `;
     } else { 
         statusText = isDue ? 'PENDENTE (ATRASADO)' : 'NÃO INICIADA';
@@ -1856,29 +1970,45 @@ async function generateFinalReportPDF() {
     const allExecutions = executions; 
     if (allExecutions.length === 0) return showNotification('Nenhuma execução registrada para Relatório Final.', 3000);
     
+    // 1. Cria o container temporário fora da tela para montagem
     const tempContainer = document.createElement('div');
-    tempContainer.style.width = '210mm';
+    tempContainer.style.width = '210mm'; // Define a largura base do A4 para o PDF
     tempContainer.style.padding = '10mm';
+    tempContainer.style.position = 'absolute';
+    tempContainer.style.left = '-9999px';
+    tempContainer.id = 'final-report-temp-container'; // ID para fácil remoção
+    tempContainer.style.background = '#fff'; // Fundo branco para garantir a cor no PDF
 
-    // Gera o HTML para cada execução e adiciona uma quebra de página entre eles
+    // 2. Gera o HTML para cada execução
     allExecutions.forEach(inst => {
         const reportHtml = generateReportHTML(inst); 
         const reportDiv = document.createElement('div');
         reportDiv.innerHTML = reportHtml;
         tempContainer.appendChild(reportDiv);
+        // Adiciona uma quebra de página se não for o último relatório
         if (inst !== allExecutions[allExecutions.length - 1]) {
-            const hr = document.createElement('hr');
-            hr.style.pageBreakAfter = 'always'; // Quebra de página para o PDF
+            const hr = document.createElement('div'); // Usar div e estilo para quebra de página
+            hr.style.pageBreakAfter = 'always'; 
+            hr.style.height = '10px';
             tempContainer.appendChild(hr);
         }
     });
 
     document.body.appendChild(tempContainer);
 
-    // Gera o PDF
-    await generatePdfFromElement(tempContainer, `Relatorio_Consolidado_DITL_FINAL_COMPLETO_${new Date().toISOString().slice(0, 10)}`);
-    document.body.removeChild(tempContainer);
-    showNotification('Relatório Final (Completo) gerado com sucesso.', 3000);
+    try {
+        // 3. Gera o PDF usando a função de PDF de alta qualidade
+        await generatePdfFromElement(tempContainer, `Relatorio_Consolidado_DITL_FINAL_COMPLETO_${new Date().toISOString().slice(0, 10)}`);
+        showNotification('Relatório Final (Completo) gerado com sucesso.', 3000);
+    } catch (error) {
+        console.error("Erro ao gerar PDF Consolidado:", error);
+        showNotification('Falha ao gerar o Relatório Final (Verifique o console).', 5000, 'critical');
+    } finally {
+        // 4. Limpeza: Remove o container temporário
+        if (document.body.contains(tempContainer)) {
+             document.body.removeChild(tempContainer);
+        }
+    }
 }
 
 
