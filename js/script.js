@@ -406,16 +406,23 @@ function renderHeaderStatus() {
     const shiftStatusEl = document.getElementById('shiftStatus');
     const btnStart = document.getElementById('btnStartShift');
     const btnEnd = document.getElementById('btnEndShift');
+    // Adicionar o botão Reiniciar turno
+    const btnReset = document.getElementById('btnResetShift');
     
     if (shiftActiveISO) {
         const operatorName = executingActivity ? executingActivity.operator : 'N/A';
         shiftStatusEl.textContent = `Turno ATIVO desde: ${new Date(shiftActiveISO).toLocaleString()} (Operador: ${operatorName})`;
         btnStart.disabled = true;
         btnEnd.disabled = false;
+        // Habilita se houver um turno ATIVO
+        btnReset.disabled = false; 
     } else {
         shiftStatusEl.textContent = 'Turno encerrado ou não iniciado.';
-        btnStart.disabled = activities.length === 0; // Desabilita se não houver atividades importadas
+        // O botão Iniciar deve verificar se há atividades importadas
+        btnStart.disabled = activities.length === 0; 
         btnEnd.disabled = true;
+        // Desabilita se não houver turno ATIVO
+        btnReset.disabled = true; 
     }
 }
 
@@ -1052,6 +1059,7 @@ function submitEvidenceAndComplete() {
         openEndShiftConfirmation();
     }
 }
+
 
 // ===== NOVAS FUNÇÕES DO BANNER =====
 /**
