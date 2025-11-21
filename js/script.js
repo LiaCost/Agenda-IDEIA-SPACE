@@ -14,6 +14,107 @@ let isNotificationPanelOpen = false; // Flag para controlar o estado do painel d
 let parsedData = null; // Armazena os dados da planilha antes do mapeamento.
 let headerRow = null; // Armazena a linha de cabeçalho da planilha importada.
 
+// ==================== [ATUALIZAÇÃO DE COLEGA] FUNÇÃO DE GERAÇÃO DE PDF DE ALTA QUALIDADE (COM FALLBACK) ====================
+
+// Armazena a função original se ela existir. No seu caso, a função original está mais abaixo no arquivo,
+// mas vamos defini-la como uma função vazia aqui para evitar erros de referência antes da inicialização.
+// A função original será definida como `window.generatePdfFromElement` no final do arquivo, e este novo código
+// fará o override dela.
+const originalGeneratePdfFromElement = async function (element, filename) {
+    // Este é um placeholder que será sobrescrito pela função de baixo antes de ser usada como fallback.
+    // Em um ambiente de navegador, a função abaixo já teria sido carregada.
+    console.warn('[PDF_OVERRIDE_FALLBACK] Chamando fallback de placeholder.');
+    throw new Error('Fallback da função original de PDF indisponível ou falhou.');
+};
+
+(function () {
+    // A nova função faz uma cópia da função original ANTES de fazer o override.
+    // Se a função original estiver definida no final do arquivo, ela será referenciada corretamente aqui após o carregamento do script.
+    const originalGenerate = window.generatePdfFromElement || originalGeneratePdfFromElement;
+
+    window.generatePdfFromElement = async function (element, filename) {
+        console.log('[PDF_OVERRIDE] Iniciando geração de PDF para:', filename);
+        try {
+            showNotification('Gerando PDF em alta qualidade...', 2500);
+
+            const originalTransform = element.style.transform;
+            const originalWidth = element.style.width;
+
+            // 1. Aplica o scale e largura para melhor qualidade do html2canvas
+            element.style.transform = "scale(1.35)";
+            element.style.transformOrigin = "top left";
+            element.style.width = "155mm";
+
+            await new Promise(r => setTimeout(r, 120)); // Aguarda o DOM renderizar o scale
+
+            // 2. Converte o elemento para Canvas com alta escala (scale: 3)
+            const canvas = await html2canvas(element, {
+                scale: 3,
+                useCORS: true,
+                scrollY: -window.scrollY
+            });
+
+            // 3. Restaura os estilos originais do elemento (crucial para a UI)
+            element.style.transform = originalTransform;
+            element.style.width = originalWidth;
+
+            const imgData = canvas.toDataURL("image/png");
+
+            // 4. Inicializa o jsPDF, verificando diferentes locais de importação
+            const jspdfLib = window.jspdf || window.jsPDF || null;
+            let pdf;
+            if (jspdfLib && jspdfLib.jsPDF) {
+                pdf = new jspdfLib.jsPDF("p", "mm", "a4");
+            } else if (typeof window.jsPDF === 'function') {
+                pdf = new window.jsPDF("p", "mm", "a4");
+            } else {
+                throw new Error('jsPDF não encontrado (window.jspdf.jsPDF ou window.jsPDF).');
+            }
+
+            const pageHeight = 295; // Altura do A4 em mm
+            const imgWidth = 210; // Largura do A4 em mm (para preencher a página)
+            const imgHeight = canvas.height * imgWidth / canvas.width;
+
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            // 5. Adiciona a primeira imagem (página)
+            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+
+            heightLeft -= pageHeight;
+
+            // 6. Loop para adicionar páginas se o conteúdo exceder uma página A4
+            while (heightLeft > 0) {
+                // A posição deve ser negativa e igual à altura da página * (número de páginas já adicionadas)
+                position = heightLeft - imgHeight; 
+                pdf.addPage();
+                pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            pdf.save(`${filename}.pdf`);
+            console.log('[PDF_OVERRIDE] PDF gerado com sucesso:', filename);
+            return;
+        } catch (err) {
+            console.error('[PDF_OVERRIDE] Erro na geração do PDF:', err);
+            showNotification('Erro ao gerar PDF (veja console).', 4000, 'critical');
+            if (typeof originalGenerate === 'function' && originalGenerate !== originalGeneratePdfFromElement) {
+                console.log('[PDF_OVERRIDE] Tentando fallback para generatePdfFromElement original.');
+                try {
+                    // Executa a função original que estava definida no seu código
+                    return await originalGenerate(element, filename); 
+                } catch (err2) {
+                    console.error('[PDF_OVERRIDE] Fallback também falhou:', err2);
+                }
+            }
+            return;
+        }
+    };
+})();
+
+// ============================================================================================================================
+
+
 // ==================== PERSISTÊNCIA E INICIALIZAÇÃO ====================
 
 /**
@@ -1301,16 +1402,16 @@ function setupMappingModal() {
 
     // Tenta pré-selecionar colunas com base no texto do cabeçalho
     requiredMaps.forEach(id => {
-         const selectEl = document.getElementById(id);
-         for (let i = 0; i < selectEl.options.length; i++) {
-             const optionText = selectEl.options[i].textContent;
-             const index = selectEl.options[i].value;
-             if (optionText.includes('T +') && id === 'mapTime') selectEl.value = index;
-             if (optionText.includes('Proc.') && id === 'mapProc') selectEl.value = index;
-             if (optionText.includes('Event') && id === 'mapEvent') selectEl.value = index;
-             if (optionText.includes('Action') && id === 'mapAction') selectEl.value = index;
-             if (optionText.includes('Criteria') && id === 'mapAcceptance') selectEl.value = index;
-         }
+          const selectEl = document.getElementById(id);
+          for (let i = 0; i < selectEl.options.length; i++) {
+              const optionText = selectEl.options[i].textContent;
+              const index = selectEl.options[i].value;
+              if (optionText.includes('T +') && id === 'mapTime') selectEl.value = index;
+              if (optionText.includes('Proc.') && id === 'mapProc') selectEl.value = index;
+              if (optionText.includes('Event') && id === 'mapEvent') selectEl.value = index;
+              if (optionText.includes('Action') && id === 'mapAction') selectEl.value = index;
+              if (optionText.includes('Criteria') && id === 'mapAcceptance') selectEl.value = index;
+          }
     });
 
     // Exibe a pré-visualização dos dados
@@ -1720,6 +1821,8 @@ async function generateFinalReportPDF() {
  * @param {HTMLElement} element - O elemento HTML a ser convertido.
  * @param {string} filename - O nome do arquivo PDF.
  */
+// ** [FUNÇÃO ORIGINAL] ** Esta função é mantida no final, mas a nova função no topo faz um override de 'window.generatePdfFromElement'.
+// No caso de falha da nova função, ela tenta chamar o 'originalGenerate' que é esta função.
 async function generatePdfFromElement(element, filename) {
     showNotification('Gerando PDF... Aguarde.', 3000);
 
