@@ -1354,7 +1354,7 @@ function updateExecutionTaskUI(taskId) {
         buttonsHtml = `
             <button class="btn-small btn-secondary" disabled>Finalizado</button>
             <button class="btn-small" onclick="downloadTaskPDF('${task.id}')">PDF (Unitário)</button>
-            ${!task.success ? `<button class="btn-small" style="background:#f44336;" onclick="openResetTaskConfirmation('${task.id}')">Reiniciar Atividade</button>` : ''}
+            ${!task.success ? `<button class="btn-small" style="background:#f44336;" onclick="openResetTaskConfirmation('${task.id}')">Reiniciar atividade</button>` : ''}
         `;
     } else if (isRunning) {
         statusText = 'EM EXECUÇÃO';
@@ -1371,7 +1371,7 @@ function updateExecutionTaskUI(taskId) {
             <button class="btn-small" onclick="startStopwatch('${task.id}')">Retomar</button>
             <button class="btn-small" style="background:#4CAF50" onclick="stopAndComplete('${task.id}', true)">SUCESSO</button>
             <button class="btn-small" style="background:#f44336" onclick="stopAndComplete('${task.id}', false)">FALHA</button>
-            <button class="btn-small btn-secondary" onclick="openResetTaskConfirmation('${task.id}')">Reiniciar do Zero</button>
+            <button class="btn-small btn-secondary" onclick="openResetTaskConfirmation('${task.id}')">Reiniciar do zero</button>
         `;
     } else { 
         statusText = isDue ? 'PENDENTE (ATRASADO)' : 'NÃO INICIADA';
@@ -1480,7 +1480,7 @@ function renderActivityPreview() {
     listEl.innerHTML = filteredActivities.map((t, index) => `
         <div class="task-item" style="border-left-color:#F27EBE; transition:none; transform:none;">
             <h4 class="mb-4">${index + 1}. ${escapeHtml(t['Event / Action'])}</h4>
-            <div class="small"><strong>Tempo Previsto:</strong> ${escapeHtml(t['T + (hh:mm)'])}</div>
+            <div class="small"><strong>Tempo previsto:</strong> ${escapeHtml(t['T + (hh:mm)'])}</div>
             <div class="small"><strong>Evento/Grupo:</strong> ${escapeHtml(t.Event)} | <strong>Proc. ID:</strong> ${escapeHtml(t['Proc. ID'])}</div>
             <div class="small"><strong>Critério:</strong> ${escapeHtml(t['Key Acceptance Criteria'])}</div>
         </div>
@@ -1704,12 +1704,12 @@ function renderAllReports() {
             <div class="task-item ${isCompleted ? 'completed' : ''}" style="cursor:pointer; padding:16px;" onclick="previewReport('${inst.instanceId}')">
                 <div class="task-header">
                     <div>
-                        <h4 class="mb-4">Relatório do Turno: ${new Date(inst.shiftStart).toLocaleDateString()}</h4>
+                        <h4 class="mb-4">Relatório do turno: ${new Date(inst.shiftStart).toLocaleDateString()}</h4>
                         <div class="small">Operador: ${inst.operator}</div>
                         <div class="small">Início: ${new Date(inst.shiftStart).toLocaleTimeString()} | Fim: ${inst.shiftEnd ? new Date(inst.shiftEnd).toLocaleTimeString() : 'Em andamento'}</div>
                     </div>
                     <div>
-                        <div class="small fw-700" style="color:#F27EBE;">Total Executado: ${totalTimeFormatted}</div>
+                        <div class="small fw-700" style="color:#F27EBE;">Total executado: ${totalTimeFormatted}</div>
                         <span class="success-badge ${isCompleted ? 'yes' : 'no'} mt-4">${isCompleted ? 'CONCLUÍDO' : 'ATIVO'}</span>
                     </div>
                 </div>
@@ -1760,8 +1760,8 @@ function generateReportHTML(inst) {
         <style>
             /* Estilos específicos para impressão/PDF do relatório */
             .report-card { background: #fff; padding: 20px; border-radius: 8px; color: #000; font-family: sans-serif; }
-            .report-header h2 { font-size: 1.2rem; color: #F20587; }
-            .report-info { margin-bottom: 12px; font-size: 0.9rem; }
+            .report-header h3 { font-size: 1rem; color: #F20587; }
+            .report-info { margin-bottom: 12px; font-size: 0.6rem; /* FONTE DIMINUÍDA */ }
             .report-task { 
                 border: 1px solid #ccc; 
                 padding: 10px; 
@@ -1769,22 +1769,29 @@ function generateReportHTML(inst) {
                 border-radius: 6px; 
                 page-break-inside: avoid; /* Previne quebra de página dentro da tarefa */
                 break-inside: avoid; 
+                font-size: 0.6rem; /* FONTE DIMINUÍDA */
             }
-            .task-title { font-weight: bold; color: #333; }
-            .evidence-img { max-width: 100px; max-height: 80px; margin-right: 5px; border: 1px solid #eee; object-fit: cover; }
+            .task-title { font-weight: bold; color: #333; font-size: 0.7rem; /* FONTE DIMINUÍDA */ }
+            .evidence-img { 
+                max-width: 150px; /* IMAGEM AUMENTADA */ 
+                max-height: 120px; /* IMAGEM AUMENTADA */ 
+                margin-right: 5px; 
+                border: 1px solid #eee; 
+                object-fit: cover; 
+            }
         </style>
         <div class="report-card">
         <div class="report-header" style="text-align:center;">
-            <h2>RELATÓRIO DE EXECUÇÃO DITL</h2>
-            <p>Sistema de Automação de Tarefas de Satélite</p>
+            <h3>RELATÓRIO DE EXECUÇÃO DITL</h3>
+            <p>Sistema de automação de tarefas de satélite</p>
         </div>
         <div class="report-info">
             <p><strong>Operador:</strong> ${escapeHtml(inst.operator)}</p>
-            <p><strong>Turno Início:</strong> ${new Date(inst.shiftStart).toLocaleString()}</p>
-            <p><strong>Turno Fim:</strong> ${inst.shiftEnd ? new Date(inst.shiftEnd).toLocaleString() : 'Em andamento'}</p>
-            <p><strong>Tempo Total Executado:</strong> ${totalTimeFormatted}</p>
+            <p><strong>Turno início:</strong> ${new Date(inst.shiftStart).toLocaleString()}</p>
+            <p><strong>Turno fim:</strong> ${inst.shiftEnd ? new Date(inst.shiftEnd).toLocaleString() : 'Em andamento'}</p>
+            <p><strong>Tempo total executado:</strong> ${totalTimeFormatted}</p>
         </div>
-        <h3>Atividades Registradas:</h3>
+        <h5>Atividades registradas:</h5>
         <hr style="border: 1px solid #ccc; margin-bottom: 10px;">
     `;
     
@@ -1810,7 +1817,7 @@ function generateReportHTML(inst) {
             <div class="report-task">
                 <div class="task-title">${escapeHtml(task['Event / Action'])}</div>
                 <p><strong>Status:</strong> ${taskStatus} (${timeInfo})</p>
-                <p><strong>Operador (Tarefa):</strong> ${escapeHtml(task.operatorTask || 'N/A')}</p>
+                <p><strong>Operador (tarefa):</strong> ${escapeHtml(task.operatorTask || 'N/A')}</p>
                 <p><strong>Concluído em:</strong> ${task.completedAt ? new Date(task.completedAt).toLocaleTimeString() : 'N/A'}</p>
                 <p><strong>Observação:</strong> ${escapeHtml(task.observation || 'Nenhuma')}</p>
                 <p><strong>Evidências:</strong></p>
@@ -1851,8 +1858,8 @@ function generateTaskReportHTML(task, inst) {
         <style>
              /* Estilos específicos para impressão/PDF do relatório unitário */
             .report-card { background: #fff; padding: 20px; border-radius: 8px; color: #000; font-family: sans-serif; }
-            .report-header h2 { font-size: 1.2rem; color: #F20587; }
-            .report-info { margin-bottom: 12px; font-size: 0.9rem; }
+            .report-header h3 { font-size: 1rem; color: #F20587; }
+            .report-info { margin-bottom: 12px; font-size: 0.6rem; /* FONTE DIMINUÍDA */ }
             .report-task { 
                 border: 1px solid #ccc; 
                 padding: 10px; 
@@ -1860,29 +1867,36 @@ function generateTaskReportHTML(task, inst) {
                 border-radius: 6px; 
                 page-break-inside: avoid; 
                 break-inside: avoid; 
+                font-size: 0.6rem; /* FONTE DIMINUÍDA */
             }
-            .task-title { font-weight: bold; color: #333; }
-            .evidence-img { max-width: 100px; max-height: 80px; margin-right: 5px; border: 1px solid #eee; object-fit: cover; }
+            .task-title { font-weight: bold; color: #333; font-size: 0.7rem; /* FONTE DIMINUÍDA */ }
+            .evidence-img { 
+                max-width: 150px; /* IMAGEM AUMENTADA */ 
+                max-height: 120px; /* IMAGEM AUMENTADA */ 
+                margin-right: 5px; 
+                border: 1px solid #eee; 
+                object-fit: cover; 
+            }
         </style>
         <div class="report-card">
         <div class="report-header" style="text-align:center;">
-            <h2>RELATÓRIO DE TAREFA UNITÁRIA DITL</h2>
-            <p style="font-size: 0.8rem;">Referente ao Turno de ${new Date(inst.shiftStart).toLocaleDateString()} (Operador: ${escapeHtml(inst.operator)})</p>
+            <h3>RELATÓRIO DE TAREFA UNITÁRIA DITL</h3>
+            <p style="font-size: 0.8rem;">Referente ao turno de ${new Date(inst.shiftStart).toLocaleDateString()} (Operador: ${escapeHtml(inst.operator)})</p>
         </div>
         <div class="report-info">
-            <p><strong>ID da Atividade:</strong> ${escapeHtml(task['Proc. ID'])}</p>
+            <p><strong>ID da atividade:</strong> ${escapeHtml(task['Proc. ID'])}</p>
             <p><strong>Evento/Ação:</strong> ${escapeHtml(task['Event / Action'])}</p>
             <p><strong>Status:</strong> ${taskStatus} (${timeInfo})</p>
-            <p><strong>Tempo Total Executado:</strong> ${totalTimeFormatted}</p>
+            <p><strong>Tempo total executado:</strong> ${totalTimeFormatted}</p>
         </div>
-        <h3>Detalhes da Tarefa:</h3>
+        <h5>Detalhes da tarefa:</h5>
         <hr style="border: 1px solid #ccc; margin-bottom: 10px;">
         <div class="report-task" style="border-color:${task.success ? '#4CAF50' : '#f44336'};">
             <div class="task-title">${escapeHtml(task['Event / Action'])}</div>
-            <p><strong>Operador (Tarefa):</strong> ${escapeHtml(task.operatorTask || 'N/A')}</p>
+            <p><strong>Operador (tarefa):</strong> ${escapeHtml(task.operatorTask || 'N/A')}</p>
             <p><strong>Concluído em:</strong> ${task.completedAt ? new Date(task.completedAt).toLocaleTimeString() : 'N/A'}</p>
             <p><strong>Observação:</strong> ${escapeHtml(task.observation || 'Nenhuma')}</p>
-            <p><strong>Critério de Aceitação:</strong> ${escapeHtml(task['Key Acceptance Criteria'])}</p>
+            <p><strong>Critério de aceitação:</strong> ${escapeHtml(task['Key Acceptance Criteria'])}</p>
             <p><strong>Evidências:</strong></p>
             <div style="display: flex; flex-wrap: wrap;">${photosHtml}</div>
         </div>
@@ -1917,7 +1931,7 @@ async function downloadTaskPDF(taskId) {
     const date = new Date(executingActivity.shiftStart).toISOString().slice(0, 10);
     try {
         await generatePdfFromElement(tempContainer, `Relatorio_Tarefa_${task['Proc. ID']}_${date}`);
-        showNotification('PDF da Tarefa unitária gerado!', 3000);
+        showNotification('PDF da tarefa unitária gerado!', 3000);
     } catch (error) {
         console.error("Erro ao gerar PDF unitário:", error);
         showNotification('Erro ao gerar PDF da tarefa. Verifique o console.', 5000, 'critical');
@@ -1957,7 +1971,7 @@ function downloadReportPDFFromPreview() {
     // Gera o PDF
     generatePdfFromElement(tempContainer, `Relatorio_Turno_${inst.operator}_${date}`).then(() => {
           document.body.removeChild(tempContainer);
-          showNotification('PDF do Relatório individual gerado!', 3000);
+          showNotification('PDF do relatório individual gerado!', 3000);
           closeReportPreview();
     });
 }
@@ -1968,7 +1982,7 @@ function downloadReportPDFFromPreview() {
  */
 async function generateFinalReportPDF() {
     const allExecutions = executions; 
-    if (allExecutions.length === 0) return showNotification('Nenhuma execução registrada para Relatório Final.', 3000);
+    if (allExecutions.length === 0) return showNotification('Nenhuma execução registrada para relatório final.', 3000);
     
     // 1. Cria o container temporário fora da tela para montagem
     const tempContainer = document.createElement('div');

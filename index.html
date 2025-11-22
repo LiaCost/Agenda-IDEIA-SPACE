@@ -55,12 +55,12 @@
                     
                     <div id="masterClockContainer">
                         <div class="clock-display">
-                            <div class="small">Tempo Decorrido</div>
+                            <div class="small">Tempo decorrido</div>
                             <div id="elapsedClockTime" class="clock-time">--:--:--</div>
                         </div>
                         
                         <div class="clock-display">
-                            <div class="small">Tempo Restante (DITL)</div>
+                            <div class="small">Tempo restante (DITL)</div>
                             <div id="masterClockTime" class="clock-time">--:--:--</div>
                         </div>
                     </div>
@@ -119,7 +119,7 @@
                     </div>
                     
                     <div class="export-card">
-                        <h2 class="mb-10" style="font-size: 1.2rem;">Exportação de Dados (Backup)</h2>
+                        <h2 class="mb-10" style="font-size: 1.2rem;">Exportação de dados (Backup)</h2>
                         <div class="btn-group">
                             <button class="btn-small" onclick="downloadJSON()">Exportar JSON</button>
                             <button class="btn-small" onclick="downloadAllImagesZip()">Baixar imagens (ZIP)</button>    
@@ -138,11 +138,11 @@
                     <div class="progress-bar"><div class="progress-fill" id="progressBar">0%</div></div>
 
                     <div class="form-group mb-15">
-                        <label for="executionFilter" style="margin-bottom: 5px;">Filtrar Tarefas por Status</label>
+                        <label for="executionFilter" style="margin-bottom: 5px;">Filtrar tarefas por status</label>
                         <select id="executionFilter" onchange="renderExecutionTasks()">
-                            <option value="todos">Todas as Tarefas</option>
-                            <option value="nao iniciada">Não Iniciadas</option>
-                            <option value="em execucao">Em Execução</option>
+                            <option value="todos">Todas as tarefas</option>
+                            <option value="nao iniciada">Não iniciadas</option>
+                            <option value="em execucao">Em execução</option>
                             <option value="pausada">Pausadas</option>
                             <option value="concluida">Finalizadas</option>
                         </select>
@@ -155,7 +155,7 @@
                     <h2>Relatórios</h2>
                     
                     <div class="form-group mb-15">
-                        <label for="reportFilter" style="margin-bottom: 5px;">Filtrar por Status</label>
+                        <label for="reportFilter" style="margin-bottom: 5px;">Filtrar por status</label>
                         <select id="reportFilter" onchange="renderAllReports()">
                             <option value="todos">Todos</option>
                             <option value="ativo">Ativo</option>
@@ -164,7 +164,7 @@
                     </div>
 
                     <div class="btn-group mb-12">
-                        <button onclick="generateFinalReportPDF()">Relatório Final (Tudo)</button>
+                        <button onclick="generateFinalReportPDF()">Relatório final</button>
                     </div>
                     <div id="reportList"></div>
                 </div>
