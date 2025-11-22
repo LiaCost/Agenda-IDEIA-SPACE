@@ -699,6 +699,69 @@ textarea {
     }
 }
 
+/* =================================
+   RODAPÉ (FOOTER)
+   ================================= */
+.main-footer {
+    width: 100%;
+    background: #1c1c3a; /* Cor mais escura para contraste */
+    color: #F0F0F2;
+    padding: 15px 20px;
+    text-align: center;
+    border-top: 1px solid #2b2b69;
+    flex-shrink: 0; /* Garante que ocupe o espaço necessário e não encolha */
+}
+
+.footer-content p {
+    margin: 4px 0;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.footer-content a {
+    text-decoration: none;
+    color: inherit;
+    /* Adiciona transição suave para a mudança de cor */
+    transition: color 0.3s ease; 
+}
+
+/* NOVO ESTILO: Mudar a cor do link ao passar o mouse */
+.footer-content a:hover {
+    color: #F20587; /* Cor rosa principal do seu sistema */
+    opacity: 1;
+}
+
+/* Ajuste no layout principal para garantir que o rodapé apareça corretamente */
+.main-layout {
+    /* Mantenha o flex e a altura mínima */
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+    /* Mude para column para que o sidebar e content-area fiquem em cima,
+       mas na versão desktop o flex da sidebar garante o layout ao lado. */
+}
+
+/* NOVO AJUSTE: Garante que o body/main-layout gerencie a altura total */
+body {
+    /* Mantém o flex inicial */
+    display: flex;
+    flex-direction: column; /* Faz com que os filhos (main-layout e footer) se empilhem */
+}
+
+.main-layout {
+    flex-grow: 1; /* Permite que o conteúdo principal (com sidebar) ocupe todo o espaço restante */
+    display: flex; /* Mantém o layout sidebar ao lado do content-area */
+    min-height: auto; /* Deixa de ser 100vh, já que body agora gerencia a altura */
+}
+
+/* Correção para o modo responsivo */
+@media(max-width:1050px) {
+    .main-layout {
+        flex-direction: column;
+        flex-grow: 1;
+    }
+}
+
 /* ====================
    ESTILOS DO MODAL DE PREVIEW (CORRIGIDO)
    ==================== */
