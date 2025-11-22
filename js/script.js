@@ -914,12 +914,12 @@ function openResetTaskConfirmation(taskId) {
     modal.dataset.taskId = taskId;
 
     // Define o conteúdo específico
-    titleEl.textContent = `ATENÇÃO: Reiniciar Tarefa '${task['Event / Action']}'!`;
+    titleEl.textContent = `ATENÇÃO: Reiniciar tarefa '${task['Event / Action']}'!`;
     messageEl.innerHTML = `Você tem certeza que deseja <b>reiniciar a tarefa</b>? O tempo de execução, status de conclusão, observações e evidências serão <b>apagados</b>.`;
     
     // Atualiza a função do botão de confirmação para chamar a função correta
     confirmButton.setAttribute('onclick', `confirmResetTask('${taskId}')`);
-    confirmButton.textContent = 'Sim, Reiniciar Tarefa';
+    confirmButton.textContent = 'Sim, reiniciar tarefa';
 
     // Se estiver pausada, muda a cor do botão para o secundário (para diferenciar do reset de turno)
     if (!task.completed) {
