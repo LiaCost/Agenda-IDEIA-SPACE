@@ -1,7 +1,7 @@
 // ==================== VARIÁVEIS GLOBAIS / ESTADO ====================
 let currentUser = localStorage.getItem('currentUser') || ''; // Armazena o ID do operador atualmente logado ou em uso. Persistido no localStorage.
-let activities = JSON.parse(localStorage.getItem('activities')) || []; // Array de todas as atividades/tarefas importadas da planilha.
-let executions = JSON.parse(localStorage.getItem('executions')) || []; // Array de instâncias de execução de turnos (shifts) passadas e ativas.
+let activities = []; // Array de todas as atividades/tarefas importadas da planilha.
+let executions = []; // Array de instâncias de execução de turnos (shifts) passadas e ativas.
 let executingActivity = null; // Objeto da instância de execução do turno ATIVO atualmente.
 const stopwatchIntervals = {}; // Objeto para armazenar os IDs dos setIntervals dos cronômetros de cada tarefa (taskId como chave).
 let dueCheckerInterval = null; // ID do setInterval para verificar tarefas atrasadas ('due').
@@ -13,6 +13,7 @@ let notificationLog = JSON.parse(localStorage.getItem('notificationLog')) || [];
 let isNotificationPanelOpen = false; // Flag para controlar o estado do painel de notificações.
 let parsedData = null; // Armazena os dados da planilha antes do mapeamento.
 let headerRow = null; // Armazena a linha de cabeçalho da planilha importada.
+const API_BASE_URL = '/api';
 
 // ==================== FUNÇÃO DE GERAÇÃO DE PDF DE ALTA QUALIDADE (COM FALLBACK) ====================
 
@@ -43,9 +44,9 @@ const originalGeneratePdfFromElement = async function (element, filename) {
             // 1. Aplica o scale e largura para melhor qualidade do html2canvas
             element.style.transform = "scale(1.35)";
             element.style.transformOrigin = "top left";
-            
+
             // CORREÇÃO: Força a largura para 155mm, que funciona bem para A4 no html2canvas
-            element.style.width = "155mm"; 
+            element.style.width = "155mm";
 
             await new Promise(r => setTimeout(r, 120)); // Aguarda o DOM renderizar o scale
 
@@ -88,7 +89,7 @@ const originalGeneratePdfFromElement = async function (element, filename) {
             // 6. Loop para adicionar páginas se o conteúdo exceder uma página A4
             while (heightLeft > 0) {
                 // A posição deve ser negativa e igual à altura da página * (número de páginas já adicionadas)
-                position = heightLeft - imgHeight; 
+                position = heightLeft - imgHeight;
                 pdf.addPage();
                 pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
                 heightLeft -= pageHeight;
@@ -104,7 +105,7 @@ const originalGeneratePdfFromElement = async function (element, filename) {
                 console.log('[PDF_OVERRIDE] Tentando fallback para generatePdfFromElement original.');
                 try {
                     // Executa a função original que estava definida no seu código
-                    return await originalGenerate(element, filename); 
+                    return await originalGenerate(element, filename);
                 } catch (err2) {
                     console.error('[PDF_OVERRIDE] Fallback também falhou:', err2);
                 }
@@ -125,74 +126,121 @@ const originalGeneratePdfFromElement = async function (element, filename) {
  */
 function persistAll() {
     localStorage.setItem('currentUser', currentUser);
-    if (executingActivity) {
-        const index = executions.findIndex(e => e.instanceId === executingActivity.instanceId);
-        if (index !== -1) {
-            executions[index] = executingActivity; // Atualiza a instância ativa no array de todas as execuções.
-        }
-    }
-    localStorage.setItem('activities', JSON.stringify(activities));
-    localStorage.setItem('executions', JSON.stringify(executions));
     localStorage.setItem('notificationLog', JSON.stringify(notificationLog));
 }
 
 /**
- * @description Carrega o estado salvo no localStorage e inicializa a interface.
- * Identifica o turno ativo, renderiza a UI e reinicia cronômetros e checadores.
+ * @description Helper para normalizar as chaves vindas da API para o formato esperado pelo Front-end.
  */
-function loadState() {
-    const shiftActiveISO = localStorage.getItem('shiftActiveISO');
-    if (shiftActiveISO) {
-        // Encontra a instância de execução que estava ativa
-        executingActivity = executions.find(e => e.status === 'ativo' && e.shiftStart === shiftActiveISO);
-    }
-    
-    // Mostra o container de atividades se houver dados importados
-    if (activities.length > 0) {
-        document.getElementById('loadedContainer').classList.remove('hidden');
-    }
+function mapApiTaskToLocal(apiTask, importedActivities) {
+    let criteria = '';
+    let eventGroup = '';
+    let timeStr = '';
 
-    // Renderiza o status do turno no cabeçalho
-    renderHeaderStatus();
-    // Renderiza a lista de instâncias de execução ativas/recentes
-    renderExecutionInstances();
-    // Atualiza os contadores de atividades e execuções ativas
-    updateStats();
-    // Renderiza a pré-visualização das atividades importadas
-    renderActivityPreview(); 
-    // Renderiza o log de notificações no painel
-    renderNotificationLog();
-
-    // Restaura a aba ativa do localStorage
-    const activeTabId = localStorage.getItem('activeTabId') || 'cadastro';
-    const activeTabButton = document.querySelector(`.tab-btn[onclick*='${activeTabId}']`);
-    if (activeTabButton) {
-        showTab(activeTabId, activeTabButton);
-    } else {
-        showTab('cadastro', document.querySelector(".tab-btn[onclick*='cadastro']"));
-    }
-
-    // Reinicia os cronômetros das tarefas que estavam em execução
-    if (executingActivity && executingActivity.tasks) {
-        executingActivity.tasks.forEach(task => {
-            if (task._stopwatchRunning) {
-                startStopwatch(task.id); 
-            }
-        });
-        // Seleciona a instância de execução ativa na aba de Execução
-        if (executingActivity.instanceId) {
-            selectExecutionInstance(executingActivity.instanceId);
+    if (importedActivities) {
+        const original = importedActivities.find(a => a['Proc. ID'] === apiTask.procId);
+        if (original) {
+            criteria = original['Key Acceptance Criteria'];
+            eventGroup = original['Event'];
+            timeStr = original['T + (hh:mm)'];
         }
-        
-        // Reinicia o relógio mestre do turno
-        if (executingActivity.status === 'ativo' && executingActivity.ditlTotalSeconds) {
+    }
+
+    return {
+        id: apiTask.taskId,
+        instanceId: apiTask.turnoInstanceId,
+        'Proc. ID': apiTask.procId,
+        'Event / Action': apiTask.acao || apiTask['Event / Action'],
+        'Key Acceptance Criteria': apiTask.criteriosAceitacao || criteria,
+        'Event': eventGroup,
+        'T + (hh:mm)': timeStr,
+        status: apiTask.status,
+        runtimeSeconds: apiTask.runtimeSeconds || 0,
+        targetSeconds: apiTask.targetSeconds || 0,
+        timeMode: apiTask.timeMode || 'countdown',
+        completed: apiTask.completed === 1 || apiTask.completed === true,
+        completedAt: apiTask.completedAt,
+        success: apiTask.success === 1 || apiTask.success === true,
+        operatorTask: apiTask.operadorTarefa,
+        observation: apiTask.observacao,
+        photos: apiTask.photos || [],
+
+        _stopwatchRunning: false,
+        _stopwatchStart: null,
+        due: false,
+        alerted: false,
+        scheduledAlertISO: null,
+        scheduledLimitISO: null
+    };
+}
+
+/**
+ * @description Carrega o estado do servidor.
+ */
+async function loadState() {
+    try {
+        const resActivities = await fetch(`${API_BASE_URL}/atividades-importadas`);
+        const dataActivities = await resActivities.json();
+
+        activities = dataActivities.map(a => ({
+            'T + (hh:mm)': a.tempoPrevisto,
+            'Proc. ID': a.procId,
+            'Event': a.evento,
+            'Event / Action': a.acao,
+            'Key Acceptance Criteria': a.criteriosAceitacao
+        }));
+
+        if (activities.length > 0) {
+            document.getElementById('loadedContainer').classList.remove('hidden');
+        }
+
+        const resTurno = await fetch(`${API_BASE_URL}/turno-ativo`);
+        const activeShiftData = await resTurno.json();
+
+        if (activeShiftData) {
+            executingActivity = {
+                instanceId: activeShiftData.instanceId,
+                operator: activeShiftData.operadorResponsavel,
+                shiftStart: activeShiftData.inicioTurno,
+                shiftEnd: null,
+                status: 'ativo',
+                ditlTotalSeconds: 0,
+                tasks: activeShiftData.tasks.map(t => mapApiTaskToLocal(t, activities))
+            };
+
+            let maxSeconds = 0;
+            activities.forEach(t => {
+                const seconds = timeToSeconds(t['T + (hh:mm)']);
+                if (seconds !== null && seconds > maxSeconds) maxSeconds = seconds;
+            });
+            executingActivity.ditlTotalSeconds = maxSeconds;
+
+            localStorage.setItem('shiftActiveISO', activeShiftData.inicioTurno);
+
             startMasterClock(executingActivity.ditlTotalSeconds);
+            selectExecutionInstance(executingActivity.instanceId);
+        } else {
+            executingActivity = null;
+            localStorage.removeItem('shiftActiveISO');
         }
-    }
 
-    // Inicia os checadores de alertas e atrasos
-    startScheduledChecker();
-    startAlertChecker();
+        renderHeaderStatus();
+        renderExecutionInstances();
+        updateStats();
+        renderActivityPreview();
+        renderNotificationLog();
+
+        const activeTabId = localStorage.getItem('activeTabId') || 'cadastro';
+        const activeTabButton = document.querySelector(`.tab-btn[onclick*='${activeTabId}']`);
+        if (activeTabButton) showTab(activeTabId, activeTabButton);
+
+        startScheduledChecker();
+        startAlertChecker();
+
+    } catch (error) {
+        console.error('Erro ao carregar estado:', error);
+        showNotification('Erro de conexão com o servidor.', 5000, 'critical');
+    }
 }
 
 // Ouve o evento de carregamento do DOM para inicializar e configurar o file input
@@ -217,7 +265,7 @@ function showNotification(message, duration = 3000, type = 'default') {
         read: false
     });
     notificationLog = notificationLog.slice(0, 50); // Limita o log a 50 itens
-    persistAll(); 
+    persistAll();
     renderNotificationLog(); // Atualiza a contagem e a lista
     const el = document.createElement('div');
     el.className = `notification ${type}`;
@@ -238,7 +286,7 @@ function renderNotificationLog() {
     const unreadCount = notificationLog.filter(item => !item.read).length;
     if (unreadCount > 0) {
         countEl.textContent = unreadCount;
-        countEl.style.display = 'flex'; 
+        countEl.style.display = 'flex';
     } else {
         countEl.textContent = 0;
         countEl.style.display = 'none';
@@ -298,8 +346,8 @@ function showTab(tabId, clickedButton) {
         clickedButton.classList.add('active');
         localStorage.setItem('activeTabId', tabId);
     } else {
-          document.querySelector(`.tab-btn[onclick*='${tabId}']`)?.classList.add('active');
-          localStorage.setItem('activeTabId', tabId);
+        document.querySelector(`.tab-btn[onclick*='${tabId}']`)?.classList.add('active');
+        localStorage.setItem('activeTabId', tabId);
     }
     // Lógica específica para renderização de conteúdo ao trocar de aba
     if (tabId === 'execucao') {
@@ -317,20 +365,20 @@ function showTab(tabId, clickedButton) {
  * @param {string} str - A string a ser escapada.
  * @returns {string} A string com caracteres HTML substituídos por entidades.
  */
-function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
 
 /**
  * @description Formata uma quantidade total de segundos no formato HH:MM:SS.
  * @param {number} sec - O total de segundos.
  * @returns {string} O tempo formatado.
  */
-function formatSeconds(sec) { 
-    const totalSecs = Math.max(0, Math.floor(sec)); 
-    const mm = Math.floor(totalSecs / 60); 
-    const ss = totalSecs % 60; 
+function formatSeconds(sec) {
+    const totalSecs = Math.max(0, Math.floor(sec));
+    const mm = Math.floor(totalSecs / 60);
+    const ss = totalSecs % 60;
     const hh = Math.floor(mm / 60);
     const disp_mm = mm % 60;
-    return `${String(hh).padStart(2,'0')}:${String(disp_mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    return `${String(hh).padStart(2, '0')}:${String(disp_mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
 }
 
 /**
@@ -362,8 +410,8 @@ function timeToSeconds(timeStr) {
 function timeToTotalSeconds(timeStr) {
     if (!timeStr) return 0;
     const parts = timeStr.split(':').map(p => parseInt(p, 10));
-    if (parts.length === 2) { 
-        return (parts[0] * 3600) + (parts[1] * 60); 
+    if (parts.length === 2) {
+        return (parts[0] * 3600) + (parts[1] * 60);
     }
     return 0;
 }
@@ -410,21 +458,21 @@ function renderHeaderStatus() {
     const btnEnd = document.getElementById('btnEndShift');
     // Adicionar o botão Reiniciar turno
     const btnReset = document.getElementById('btnResetShift');
-    
+
     if (shiftActiveISO) {
         const operatorName = executingActivity ? executingActivity.operator : 'N/A';
         shiftStatusEl.textContent = `Turno ATIVO desde: ${new Date(shiftActiveISO).toLocaleString()} (Operador: ${operatorName})`;
         btnStart.disabled = true;
         btnEnd.disabled = false;
         // Habilita se houver um turno ATIVO
-        btnReset.disabled = false; 
+        btnReset.disabled = false;
     } else {
         shiftStatusEl.textContent = 'Turno encerrado ou não iniciado.';
         // O botão Iniciar deve verificar se há atividades importadas
-        btnStart.disabled = activities.length === 0; 
+        btnStart.disabled = activities.length === 0;
         btnEnd.disabled = true;
         // Desabilita se não houver turno ATIVO
-        btnReset.disabled = true; 
+        btnReset.disabled = true;
     }
 }
 
@@ -432,82 +480,42 @@ function renderHeaderStatus() {
  * @description Inicia um novo turno de execução de atividades.
  * Cria a instância de execução, configura o relógio mestre e inicia a primeira tarefa.
  */
-function startShift() {
-    if (localStorage.getItem('shiftActiveISO')) {
-        showNotification('Já existe um turno ativo! Encerre o anterior primeiro.', 3000);
-        return;
-    }
+async function startShift() {
+    if (localStorage.getItem('shiftActiveISO')) return showNotification('Já existe um turno ativo!', 3000);
     if (activities.length === 0) {
-        showNotification('Importe as atividades (planilha) primeiro.', 3000);
+        showNotification('Importe as atividades primeiro.', 3000);
         document.querySelector('.tab-btn').click();
         return;
     }
 
-    const startTime = new Date().toISOString();
-    localStorage.setItem('shiftActiveISO', startTime);
-    
-    // Calcula a duração máxima do turno (o último T + (hh:mm)) para o relógio mestre
-    let maxSeconds = 0;
-    activities.forEach(t => {
-        const seconds = timeToSeconds(t['T + (hh:mm)']); 
-        if (seconds !== null && seconds > maxSeconds) {
-            maxSeconds = seconds;
+    const operator = currentUser || 'Operador Padrão';
+    const shiftStart = new Date().toISOString();
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/turnos/iniciar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ operator, shiftStart })
+        });
+        
+        if (!res.ok) throw new Error('Falha ao iniciar turno na API');
+        
+        localStorage.setItem('shiftActiveISO', shiftStart);
+        await loadState();
+
+        const execButton = document.querySelector(".tab-btn[onclick*='execucao']");
+        showTab('execucao', execButton);
+        
+        showNotification('Turno iniciado com sucesso!', 3000);
+
+        if (executingActivity && executingActivity.tasks[0]) {
+            startStopwatch(executingActivity.tasks[0].id);
         }
-    });
 
-    // Cria o objeto da nova execução
-    executingActivity = {
-        instanceId: `INST-${Date.now()}`,
-        operator: currentUser || 'N/A',
-        shiftStart: startTime,
-        shiftEnd: null,
-        status: 'ativo',
-        ditlTotalSeconds: maxSeconds,
-        // Inicializa as tarefas a partir das atividades
-        tasks: activities.map(t => ({
-            ...t,
-            id: `TASK-${Date.now()}-${Math.random()}`,
-            status: 'pendente',
-            runtimeSeconds: 0,
-            targetSeconds: timeToSeconds(t['T + (hh:mm)']) || 0,
-            scheduledAlertISO: null, // Campo para alerta agendado
-            scheduledLimitISO: null, // Campo para limite agendado
-            timeMode: 'countdown', // Modo de contagem (padrão regressiva, pode ser 'manual' ou 'scheduled')
-            _stopwatchRunning: false,
-            _stopwatchStart: null,
-            _nextTaskAlertShown: false,
-            completed: false,
-            completedAt: null,
-            photos: [],
-            operatorTask: '',
-            observation: '',
-            due: false, // Indica se a tarefa está atrasada em relação ao T+ da planilha
-            alerted: false, // Indica se o alerta agendado já foi mostrado
-            dueSeconds: timeToSeconds(t['T + (hh:mm)']) // Tempo previsto da planilha em segundos
-        }))
-    };
-    executions.push(executingActivity);
-    persistAll();
-
-    renderHeaderStatus();
-    selectExecutionInstance(executingActivity.instanceId); 
-    
-    // Mudar para a aba de execução
-    const execButton = document.querySelector(".tab-btn[onclick*='execucao']");
-    showTab('execucao', execButton);
-
-    updateStats();
-    
-    // Inicia o relógio mestre
-    startMasterClock(maxSeconds);
-
-    // Inicia automaticamente o cronômetro da primeira tarefa
-    const firstTask = executingActivity.tasks[0];
-    if (firstTask) {
-        startStopwatch(firstTask.id); 
-        showNotification(`Turno iniciado! Tarefa '${firstTask['Event / Action']}' iniciada automaticamente.`, 4000);
-    } else {
-        showNotification('Turno iniciado! Nenhuma tarefa encontrada para iniciar.', 3000, 'warning');
+    } catch (error) {
+        console.error(error);
+        localStorage.removeItem('shiftActiveISO');
+        showNotification('Erro ao iniciar turno.', 3000, 'critical');
     }
 }
 
@@ -527,13 +535,13 @@ function openResetShiftConfirmation() {
  */
 function closeResetShiftConfirmation() {
     document.getElementById('confirmResetShiftModal').classList.add('hidden');
-    
+
     // Repõe a função original do botão de confirmação
     const confirmButton = document.getElementById('confirmResetShiftModal').querySelector('button[onclick*="confirmResetTask"]');
     if (confirmButton) {
         confirmButton.setAttribute('onclick', `confirmResetShift()`);
         confirmButton.textContent = 'Sim, reiniciar';
-        confirmButton.style.background = '#f44336'; 
+        confirmButton.style.background = '#f44336';
     }
 }
 
@@ -541,34 +549,37 @@ function closeResetShiftConfirmation() {
  * @description Reinicia o turno ATIVO atual (deleta a instância e inicia uma nova).
  * Preserva as atividades (DITL) importadas.
  */
-function confirmResetShift() {
+async function confirmResetShift() {
     closeResetShiftConfirmation();
-    
-    if (executingActivity === null) return;
+
+    if (!executingActivity) return;
 
     // 1. Pausa e limpa o relógio mestre e cronômetros
     executingActivity.tasks.forEach(task => {
         if (task._stopwatchRunning) {
-            pauseStopwatch(task.id); 
+            pauseStopwatch(task.id);
         }
     });
     if (masterClockInterval) clearInterval(masterClockInterval);
     masterClockInterval = null;
-    
-    // 2. Remove a instância de execução ATIVA do array 'executions'
-    const index = executions.findIndex(e => e.instanceId === executingActivity.instanceId);
-    if (index !== -1) {
-        executions.splice(index, 1); // Remove a instância
-    }
 
-    // 3. Limpa o estado ativo global
-    localStorage.removeItem('shiftActiveISO');
-    executingActivity = null;
-    persistAll();
-    
-    // 4. Inicia um novo turno automaticamente com as mesmas atividades importadas
-    startShift(); 
-    showNotification('Turno reiniciado com sucesso! Uma nova instância de execução foi criada.', 5000, 'warning');
+    try {
+        await fetch(`${API_BASE_URL}/turnos/${executingActivity.instanceId}/encerrar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shiftEnd: new Date().toISOString() })
+        });
+
+        localStorage.removeItem('shiftActiveISO');
+        executingActivity = null;
+
+        await startShift();
+        showNotification('Turno reiniciado (Nova instância criada).', 4000, 'warning');
+
+    } catch (error) {
+        console.error(error);
+        showNotification('Erro ao reiniciar turno.', 4000, 'critical');
+    }
 }
 
 /**
@@ -607,15 +618,15 @@ function closeEndShiftConfirmation() {
  * @description Finaliza o turno de execução, pausando cronômetros e limpando o estado.
  * @param {boolean} wasForced - Indica se o encerramento foi forçado (com tarefas pendentes).
  */
-function confirmEndShift(wasForced) {
+async function confirmEndShift(wasForced) {
     closeEndShiftConfirmation();
-    
-    if (executingActivity === null) return;
+
+    if (!executingActivity) return;
 
     // Pausa todos os cronômetros ativos
     executingActivity.tasks.forEach(task => {
         if (task._stopwatchRunning) {
-            pauseStopwatch(task.id); 
+            pauseStopwatch(task.id);
         }
     });
 
@@ -627,23 +638,27 @@ function confirmEndShift(wasForced) {
     document.getElementById('elapsedClockTime').textContent = '--:--:--';
     document.getElementById('elapsedClockTime').style.color = '#fff';
 
+    try {
+        await fetch(`${API_BASE_URL}/turnos/${executingActivity.instanceId}/encerrar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shiftEnd: new Date().toISOString() })
+        });
 
-    // Atualiza o estado da execução
-    executingActivity.shiftEnd = new Date().toISOString();
-    executingActivity.status = 'concluido';
-    localStorage.removeItem('shiftActiveISO');
+        localStorage.removeItem('shiftActiveISO');
+        executingActivity = null;
 
-    persistAll();
-    executingActivity = null;
-    
-    renderHeaderStatus();
-    updateStats(); 
-    
-    // Mudar para a aba de relatórios
-    const reportButton = document.querySelector(".tab-btn[onclick*='relatorios']");
-    showTab('relatorios', reportButton);
+        renderHeaderStatus();
+        updateStats();
 
-    showNotification('Turno encerrado com sucesso. Relatório gerado!', 4000);
+        const reportButton = document.querySelector(".tab-btn[onclick*='relatorios']");
+        showTab('relatorios', reportButton);
+        showNotification('Turno encerrado. Relatório disponível.', 4000);
+
+    } catch (error) {
+        console.error(error);
+        showNotification('Erro ao encerrar turno na API.', 4000, 'critical');
+    }
 }
 
 /**
@@ -668,12 +683,17 @@ function closeClearDataConfirmation() {
 }
 
 /**
- * @description Limpa todo o localStorage e recarrega a página.
+ * @description Limpa atividades-importados do Banco de Dados
  */
-function confirmClearAllData() {
+async function confirmClearAllData() {
     closeClearDataConfirmation();
-    localStorage.clear();
-    location.reload(); 
+    try {
+        await fetch(`${API_BASE_URL}/atividades-importadas`, { method: 'DELETE' });
+        localStorage.clear();
+        location.reload();
+    } catch (e) {
+        showNotification('Erro ao limpar dados do servidor.', 3000);
+    }
 }
 
 
@@ -690,7 +710,7 @@ function startMasterClock(totalDurationInSeconds) {
 
     const clockElRegressive = document.getElementById('masterClockTime');
     const clockElProgressive = document.getElementById('elapsedClockTime');
-    
+
     if (!executingActivity || executingActivity.status !== 'ativo') {
         clockElRegressive.textContent = '--:--:--';
         clockElProgressive.textContent = '--:--:--';
@@ -702,9 +722,9 @@ function startMasterClock(totalDurationInSeconds) {
     masterClockInterval = setInterval(() => {
         // Garantias
         if (!executingActivity || executingActivity.status !== 'ativo') {
-             clearInterval(masterClockInterval);
-             masterClockInterval = null;
-             return;
+            clearInterval(masterClockInterval);
+            masterClockInterval = null;
+            return;
         }
 
         const now = new Date().getTime();
@@ -723,7 +743,7 @@ function startMasterClock(totalDurationInSeconds) {
         } else {
             clockElRegressive.style.color = '#fff'; // Cor padrão
         }
-        
+
         // Cor do progressivo
         clockElProgressive.style.color = '#fff';
 
@@ -747,24 +767,28 @@ function startStopwatch(taskId) {
         pauseStopwatch(currentlyRunning.id);
         // Não precisa de notificação, pois a nova tarefa será iniciada logo em seguida.
     }
-    if (task._stopwatchRunning) { 
-        showNotification('Cronómetro já em execução para esta tarefa.'); 
-        return; 
+    if (task._stopwatchRunning) {
+        showNotification('Cronómetro já em execução para esta tarefa.');
+        return;
     }
     task._stopwatchRunning = true;
     task._stopwatchStart = new Date().getTime(); // Registra o tempo de início da sessão atual
     task.status = 'em execução';
     task.due = false; // Reinicia o status de atraso ao iniciar/retomar
-    persistAll();
     updateExecutionTaskUI(taskId);
+
+    fetch(`${API_BASE_URL}/tarefa/${taskId}/atualizar-status`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'pendente', runtimeSeconds: task.runtimeSeconds })
+    }).catch(console.error);
 
     // Inicia o intervalo de atualização do cronômetro da tarefa
     stopwatchIntervals[taskId] = setInterval(() => {
         const now = new Date().getTime();
         // Duração da sessão atual do cronômetro
-        const sessionElapsedSeconds = Math.floor((now - task._stopwatchStart) / 1000); 
+        const sessionElapsedSeconds = Math.floor((now - task._stopwatchStart) / 1000);
         // Tempo total, incluindo sessões anteriores
-        const totalElapsed = (task.runtimeSeconds || 0) + sessionElapsedSeconds; 
+        const totalElapsed = (task.runtimeSeconds || 0) + sessionElapsedSeconds;
         const el = document.getElementById(`timer-${taskId}`);
         if (!el) return;
 
@@ -783,7 +807,7 @@ function startStopwatch(taskId) {
 
             // Alerta de tarefa seguinte (últimos 10 segundos)
             if (timeLeft <= 10 && timeLeft > 0 && !task._nextTaskAlertShown) {
-                task._nextTaskAlertShown = true; 
+                task._nextTaskAlertShown = true;
                 const currentIndex = executingActivity.tasks.findIndex(t => t.id === task.id);
                 if (currentIndex !== -1 && (currentIndex + 1) < executingActivity.tasks.length) {
                     const nextTask = executingActivity.tasks[currentIndex + 1];
@@ -837,8 +861,13 @@ function pauseStopwatch(taskId) {
     task._stopwatchRunning = false;
     task._stopwatchStart = null;
     task.status = 'pendente'; // Altera o status
-    persistAll();
     updateExecutionTaskUI(taskId); // Atualiza a UI para refletir a pausa
+
+    fetch(`${API_BASE_URL}/tarefa/${taskId}/atualizar-status`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'pendente', runtimeSeconds: task.runtimeSeconds })
+    }).catch(console.error);
+
     showNotification(`Tarefa pausada: ${task['Event / Action']}.`, 2000, 'warning');
 }
 
@@ -871,7 +900,7 @@ function checkScheduledAlerts() {
     executingActivity.tasks.forEach(t => {
         // Verifica se é uma tarefa programada, não concluída e com um horário de alerta
         if (!t.completed && t.timeMode === 'scheduled' && t.scheduledAlertISO) {
-            const alertTime = new Date(t.scheduledAlertISO).getTime(); 
+            const alertTime = new Date(t.scheduledAlertISO).getTime();
             // Se o horário de alerta foi atingido e o alerta ainda não foi exibido
             if (now >= alertTime && !t.alerted) {
                 t.alerted = true;
@@ -891,7 +920,7 @@ function checkScheduledAlerts() {
  */
 function startAlertChecker() {
     if (alertCheckerInterval) clearInterval(alertCheckerInterval);
-    alertCheckerInterval = setInterval(checkScheduledAlerts, 5000); 
+    alertCheckerInterval = setInterval(checkScheduledAlerts, 5000);
 }
 
 // ==================== REINICIAR ATIVIDADE UNITÁRIA ====================
@@ -903,7 +932,7 @@ function startAlertChecker() {
 function openResetTaskConfirmation(taskId) {
     const task = executingActivity.tasks.find(tt => tt.id === taskId);
     if (!task) return;
-    
+
     // Usamos o modal de Reiniciar Turno, mas adaptamos o conteúdo
     const modal = document.getElementById('confirmResetShiftModal');
     const titleEl = modal.querySelector('h3');
@@ -916,16 +945,16 @@ function openResetTaskConfirmation(taskId) {
     // Define o conteúdo específico
     titleEl.textContent = `ATENÇÃO: Reiniciar tarefa '${task['Event / Action']}'!`;
     messageEl.innerHTML = `Você tem certeza que deseja <b>reiniciar a tarefa</b>? O tempo de execução, status de conclusão, observações e evidências serão <b>apagados</b>.`;
-    
+
     // Atualiza a função do botão de confirmação para chamar a função correta
     confirmButton.setAttribute('onclick', `confirmResetTask('${taskId}')`);
     confirmButton.textContent = 'Sim, reiniciar tarefa';
 
     // Se estiver pausada, muda a cor do botão para o secundário (para diferenciar do reset de turno)
     if (!task.completed) {
-         confirmButton.style.background = '#F27EBE'; 
+        confirmButton.style.background = '#F27EBE';
     } else {
-         confirmButton.style.background = '#f44336';
+        confirmButton.style.background = '#f44336';
     }
 
 
@@ -936,7 +965,7 @@ function openResetTaskConfirmation(taskId) {
  * @description Confirma e executa o reset de uma tarefa unitária.
  * @param {string} taskId - O ID da tarefa a ser reiniciada.
  */
-function confirmResetTask(taskId) {
+async function confirmResetTask(taskId) {
     const task = executingActivity.tasks.find(tt => tt.id === taskId);
     if (!task) return;
 
@@ -945,51 +974,54 @@ function confirmResetTask(taskId) {
         clearInterval(stopwatchIntervals[taskId]);
         delete stopwatchIntervals[taskId];
     }
-    
-    // 2. Reseta todos os campos de estado e dados de execução
-    task.status = 'pendente';
-    task.runtimeSeconds = 0;
-    task.completed = false;
-    task.success = null;
-    task.completedAt = null;
-    task.photos = []; 
-    task.operatorTask = '';
-    task.observation = '';
-    task.due = false;
-    task.alerted = false;
-    task._stopwatchRunning = false;
-    task._stopwatchStart = null;
-    task._nextTaskAlertShown = false;
 
-    persistAll();
-    
-    // 3. Fecha o modal e atualiza a interface
-    document.getElementById('confirmResetShiftModal').classList.add('hidden');
-    
-    // Repõe a função original do botão de confirmação do modal para o Reset de Turno
-    const confirmButton = document.getElementById('confirmResetShiftModal').querySelector('button[onclick*="confirmResetTask"]');
-    if (confirmButton) {
-        confirmButton.setAttribute('onclick', `confirmResetShift()`);
-        confirmButton.textContent = 'Sim, reiniciar';
-        confirmButton.style.background = '#f44336'; 
+    try {
+        await fetch(`${API_BASE_URL}/tarefa/${taskId}/reiniciar`, { method: 'POST' });
+        // 2. Reseta todos os campos de estado e dados de execução
+        task.status = 'pendente';
+        task.runtimeSeconds = 0;
+        task.completed = false;
+        task.success = null;
+        task.completedAt = null;
+        task.photos = [];
+        task.operatorTask = '';
+        task.observation = '';
+        task.due = false;
+        task.alerted = false;
+        task._stopwatchRunning = false;
+        task._stopwatchStart = null;
+        task._nextTaskAlertShown = false;
+
+        // 3. Fecha o modal e atualiza a interface
+        document.getElementById('confirmResetShiftModal').classList.add('hidden');
+
+        // Repõe a função original do botão de confirmação do modal para o Reset de Turno
+        const confirmButton = document.getElementById('confirmResetShiftModal').querySelector('button[onclick*="confirmResetTask"]');
+        if (confirmButton) {
+            confirmButton.setAttribute('onclick', `confirmResetShift()`);
+            confirmButton.textContent = 'Sim, reiniciar';
+            confirmButton.style.background = '#f44336';
+        }
+
+        // NOVO: Pausar qualquer outra tarefa que esteja rodando (se houver)
+        const currentlyRunning = executingActivity.tasks.find(t => t._stopwatchRunning);
+        if (currentlyRunning && currentlyRunning.id !== taskId) {
+            pauseStopwatch(currentlyRunning.id);
+        }
+
+        // NOVO: Inicia a tarefa que acabou de ser resetada
+        startStopwatch(taskId);
+
+        // Remove a notificação de reinício (que estava causando confusão) e mostra a de início.
+        // showNotification(`A atividade '${task['Event / Action']}' foi reiniciada do zero.`, 4000, 'critical');
+        showNotification(`Atividade reiniciada: '${task['Event / Action']}'. Iniciando cronômetro.`, 4000, 'warning');
+
+        updateProgress();
+        renderExecutionTasks();
+        showNotification(`A atividade '${task['Event / Action']}' foi reiniciada do zero.`, 4000, 'critical');
+    } catch (e) {
+        showNotification('Erro ao reiniciar tarefa na API.', 3000, 'critical');
     }
-
-    // NOVO: Pausar qualquer outra tarefa que esteja rodando (se houver)
-    const currentlyRunning = executingActivity.tasks.find(t => t._stopwatchRunning);
-    if (currentlyRunning && currentlyRunning.id !== taskId) {
-         pauseStopwatch(currentlyRunning.id); 
-    }
-    
-    // NOVO: Inicia a tarefa que acabou de ser resetada
-    startStopwatch(taskId);
-
-    // Remove a notificação de reinício (que estava causando confusão) e mostra a de início.
-    // showNotification(`A atividade '${task['Event / Action']}' foi reiniciada do zero.`, 4000, 'critical');
-    showNotification(`Atividade reiniciada: '${task['Event / Action']}'. Iniciando cronômetro.`, 4000, 'warning');
-
-    updateProgress();
-    renderExecutionTasks();
-    showNotification(`A atividade '${task['Event / Action']}' foi reiniciada do zero.`, 4000, 'critical');
 }
 
 // A função closeResetShiftConfirmation() já existe e pode ser reutilizada para fechar o modal.
@@ -1007,7 +1039,7 @@ function openEvidenceModal(taskId, success) {
 
     currentTaskToComplete = { taskId, success }; // Armazena o estado da conclusão
     document.getElementById('evidenceModalTaskName').textContent = task['Event / Action'];
-    document.getElementById('evidenceModalObservation').value = task.observation || ''; 
+    document.getElementById('evidenceModalObservation').value = task.observation || '';
     const operatorInput = document.getElementById('evidenceModalOperatorId');
     operatorInput.value = task.operatorTask || currentUser || ''; // Preenche com o último operador ou currentUser
     const btn = document.getElementById('evidenceSubmitButton');
@@ -1086,9 +1118,9 @@ function addPhotosToEvidenceModal() {
             task.photos.push(ev.target.result); // Adiciona a foto como DataURL
             filesProcessed++;
             if (filesProcessed === totalFiles) {
-                renderEvidencePhotoPreview(task.photos); 
-                persistAll(); 
-                document.getElementById('evidenceFileInput').value = ''; 
+                renderEvidencePhotoPreview(task.photos);
+                persistAll();
+                document.getElementById('evidenceFileInput').value = '';
             }
         };
         reader.readAsDataURL(f);
@@ -1104,7 +1136,6 @@ function removePhotoFromEvidenceModal(taskId, index) {
     const task = executingActivity.tasks.find(tt => tt.id === taskId);
     if (!task || index < 0 || index >= task.photos.length) return;
     task.photos.splice(index, 1);
-    persistAll();
     renderEvidencePhotoPreview(task.photos); // Renderiza a pré-visualização novamente
 }
 
@@ -1112,7 +1143,7 @@ function removePhotoFromEvidenceModal(taskId, index) {
  * @description Finaliza a tarefa, salvando evidências e movendo para a próxima tarefa.
  * Valida o ID do operador e a observação.
  */
-function submitEvidenceAndComplete() {
+async function submitEvidenceAndComplete() {
     const { taskId, success } = currentTaskToComplete;
     const task = executingActivity.tasks.find(tt => tt.id === taskId);
     if (!task) return;
@@ -1134,41 +1165,62 @@ function submitEvidenceAndComplete() {
     }
 
     // Atualiza o estado da tarefa
-    task.operatorTask = operatorId;
     currentUser = operatorId; // Atualiza o usuário atual
     localStorage.setItem('currentUser', currentUser);
-    
+
     // Atualiza o operador do turno se ainda for 'N/A'
     if (executingActivity.operator === 'N/A' || executingActivity.operator === '') {
         executingActivity.operator = operatorId;
-        renderHeaderStatus(); 
+        renderHeaderStatus();
     }
 
-    task.observation = observation;
-    task.completed = true;
-    task.status = success ? 'concluída (sucesso)' : 'concluída (falha)';
-    task.success = success;
-    if (!task.completedAt) task.completedAt = new Date().toISOString();
-    task.due = false; 
 
-    persistAll();
-    updateExecutionTaskUI(taskId); 
-    showNotification(`Tarefa finalizada: ${task['Event / Action']} (${success ? 'Sucesso' : 'Falha'})`);
-    updateProgress();
-    closeEvidenceModal();
-    
-    // Inicia automaticamente a próxima tarefa se houver
-    const currentIndex = executingActivity.tasks.findIndex(t => t.id === taskId);
-    if (currentIndex !== -1 && (currentIndex + 1) < executingActivity.tasks.length) {
-        const nextTask = executingActivity.tasks[currentIndex + 1];
-        if (nextTask && !nextTask.completed && !nextTask._stopwatchRunning) {
-            startStopwatch(nextTask.id);
-            showNotification(`Próxima tarefa iniciada: ${nextTask['Event / Action']}`, 3000);
+    try {
+        const payload = {
+            success: success,
+            operatorTask: operatorId,
+            observation: observation,
+            completedAt: new Date().toISOString(),
+            runtimeSeconds: task.runtimeSeconds,
+            photos: task.photos
+        };
+
+        const res = await fetch(`${API_BASE_URL}/tarefa/${taskId}/completar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Falha API');
+        task.operatorTask = operatorId;
+        task.observation = observation;
+        task.completed = true;
+        task.status = success ? 'concluída (sucesso)' : 'concluída (falha)';
+        task.success = success;
+        task.completedAt = payload.completedAt;
+        task.due = false;
+
+        updateExecutionTaskUI(taskId);
+        showNotification(`Tarefa finalizada: ${task['Event / Action']} (${success ? 'Sucesso' : 'Falha'})`);
+        updateProgress();
+        closeEvidenceModal();
+
+        // Inicia automaticamente a próxima tarefa se houver
+        const currentIndex = executingActivity.tasks.findIndex(t => t.id === taskId);
+        if (currentIndex !== -1 && (currentIndex + 1) < executingActivity.tasks.length) {
+            const nextTask = executingActivity.tasks[currentIndex + 1];
+            if (nextTask && !nextTask.completed && !nextTask._stopwatchRunning) {
+                startStopwatch(nextTask.id);
+                showNotification(`Próxima tarefa iniciada: ${nextTask['Event / Action']}`, 3000);
+            }
+        } else {
+            // Se for a última tarefa, sugere encerrar o turno
+            showNotification('Todas as tarefas da sequência foram concluídas!', 4000);
+            openEndShiftConfirmation();
         }
-    } else {
-        // Se for a última tarefa, sugere encerrar o turno
-        showNotification('Todas as tarefas da sequência foram concluídas!', 4000);
-        openEndShiftConfirmation();
+    } catch (e) {
+        console.error(e);
+        showNotification('Erro ao salvar conclusão na API.', 4000, 'critical');
     }
 }
 
@@ -1199,7 +1251,7 @@ function hideNextTaskBanner() {
  */
 function updateStats() {
     const totalActivities = activities.length;
-    const activeExecutions = executions.filter(e => e.status === 'ativo').length;
+    const activeExecutions = executingActivity ? 1 : 0;
     const totalActivitiesEl = document.getElementById('totalActivities');
     const activeActivitiesEl = document.getElementById('activeActivities');
     if (totalActivitiesEl) totalActivitiesEl.textContent = totalActivities;
@@ -1214,7 +1266,7 @@ function renderExecutionInstances() {
     listEl.innerHTML = '';
     const allExecutions = executions.sort((a, b) => new Date(b.shiftStart) - new Date(a.shiftStart));
     const activeExecutions = allExecutions.filter(e => e.status === 'ativo');
-    
+
     // Mensagens de estado vazio
     if (activeExecutions.length === 0 && activities.length > 0 && !localStorage.getItem('shiftActiveISO')) {
         listEl.innerHTML = `<div class="small text-center p-12">Inicie o turno para ver e executar as tarefas importadas.</div>`;
@@ -1226,22 +1278,19 @@ function renderExecutionInstances() {
         document.getElementById('executionPanel').classList.add('hidden');
         return;
     }
-    
-    // Renderiza os cartões das execuções ativas
-    activeExecutions.forEach(inst => {
-        const total = inst.tasks.length;
-        const done = inst.tasks.filter(t => t.completed).length;
-        const isSelected = executingActivity && executingActivity.instanceId === inst.instanceId;
-        const progressPercent = ((done/total)*100).toFixed(0);
-        const startTime = new Date(inst.shiftStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-        listEl.innerHTML += `
+
+    const inst = executingActivity;
+    const total = inst.tasks.length;
+    const done = inst.tasks.filter(t => t.completed).length;
+    const progressPercent = total > 0 ? ((done / total) * 100).toFixed(0) : 0;
+    const startTime = new Date(inst.shiftStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    listEl.innerHTML += `
             <div class="activity-card card" onclick="selectExecutionInstance('${inst.instanceId}')" style="${isSelected ? 'transform: translateY(0); border-color:#F20587; border: 2px solid #F20587;' : 'cursor: pointer;'}">
                 <div class="fw-700">Turno: ${new Date(inst.shiftStart).toLocaleDateString()}, ${startTime}</div>
                 <div class="small">Operador: ${inst.operator}</div>
                 <div class="small">Progresso: ${done}/${total} (${progressPercent}%)</div>
             </div>
         `;
-    });
 }
 
 /**
@@ -1249,8 +1298,7 @@ function renderExecutionInstances() {
  * @param {string} instanceId - O ID da instância a ser selecionada.
  */
 function selectExecutionInstance(instanceId) {
-    executingActivity = executions.find(e => e.instanceId === instanceId);
-    if (!executingActivity) return;
+    if (!executingActivity || executingActivity.instanceId !== instanceId) return;
     const panel = document.getElementById('executionPanel');
     const title = document.getElementById('executionTitle');
     const executionFilterEl = document.getElementById('executionFilter');
@@ -1268,7 +1316,7 @@ function selectExecutionInstance(instanceId) {
 function updateProgress() {
     if (!executingActivity) return;
     const total = executingActivity.tasks.length;
-    const done = executingActivity.tasks.filter(t=>t.completed).length;
+    const done = executingActivity.tasks.filter(t => t.completed).length;
     const progressPercent = total > 0 ? ((done / total) * 100).toFixed(0) : 0;
     const progressBar = document.getElementById('progressBar');
     if (progressBar) {
@@ -1286,7 +1334,7 @@ function renderExecutionTasks() {
     const listEl = document.getElementById('executionTasks');
     listEl.innerHTML = '';
     const filterValue = document.getElementById('executionFilter')?.value || 'todos';
-    
+
     // Lógica de filtragem
     const filteredTasks = executingActivity.tasks.filter(task => {
         if (task.completed) {
@@ -1338,11 +1386,11 @@ function updateExecutionTaskUI(taskId) {
     const isDue = task.due;
     const isAlerted = task.alerted;
     const isPaused = !isRunning && !isCompleted && task.runtimeSeconds > 0;
-    const isPending = !isRunning && !isCompleted && !isPaused; 
+    const isPending = !isRunning && !isCompleted && !isPaused;
 
     let buttonsHtml = '';
     let statusText = '';
-    let statusColor = ''; 
+    let statusColor = '';
     let elapsedText = '';
     let targetText = '';
     let elapsedColor = '';
@@ -1373,11 +1421,11 @@ function updateExecutionTaskUI(taskId) {
             <button class="btn-small" style="background:#f44336" onclick="stopAndComplete('${task.id}', false)">FALHA</button>
             <button class="btn-small btn-secondary" onclick="openResetTaskConfirmation('${task.id}')">Reiniciar do zero</button>
         `;
-    } else { 
+    } else {
         statusText = isDue ? 'PENDENTE (ATRASADO)' : 'NÃO INICIADA';
         statusColor = isDue ? '#f44336' : '#F27EBE';
         // A próxima tarefa na sequência deve ter um botão de "Iniciar", mas o código não implementa essa lógica, mantendo "Em espera"
-        buttonsHtml = `<button class="btn-small btn-secondary" disabled>Em espera</button>`; 
+        buttonsHtml = `<button class="btn-small btn-secondary" disabled>Em espera</button>`;
     }
 
     // Lógica de exibição de tempo (fora do setInterval)
@@ -1386,16 +1434,16 @@ function updateExecutionTaskUI(taskId) {
         elapsedColor = statusColor;
         targetText = `Previsão: ${escapeHtml(task['T + (hh:mm)'] || '--:--')} (Manual)`;
         if (task.timeMode === 'countdown') {
-             targetText = `Máximo: ${secondsToHHMM(task.targetSeconds)} (Regressiva)`;
+            targetText = `Máximo: ${secondsToHHMM(task.targetSeconds)} (Regressiva)`;
         } else if (task.timeMode === 'scheduled') {
-             const alertTimeStr = new Date(task.scheduledAlertISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             const limitTimeStr = new Date(task.scheduledLimitISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             targetText = `Janela: ${alertTimeStr} - ${limitTimeStr} (Programado)`;
+            const alertTimeStr = new Date(task.scheduledAlertISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const limitTimeStr = new Date(task.scheduledLimitISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            targetText = `Janela: ${alertTimeStr} - ${limitTimeStr} (Programado)`;
         }
     } else {
         // Se estiver pausado, concluído ou pendente, calcula o tempo estático
         elapsedColor = isCompleted ? '#4CAF50' : (isPaused || isDue ? statusColor : '#F27EBE');
-        
+
         if (task.timeMode === 'countdown' && task.targetSeconds > 0) {
             // Contagem regressiva estática
             const timeLeft = task.targetSeconds - (task.runtimeSeconds || 0);
@@ -1407,16 +1455,16 @@ function updateExecutionTaskUI(taskId) {
             targetText = `Máximo: ${targetTime} (Regressiva)`;
         } else if (task.timeMode === 'scheduled' && task.scheduledLimitISO) {
             // Agendado estático
-             const nowTime = new Date().getTime();
-             const scheduledTime = new Date(task.scheduledLimitISO).getTime();
-             const timeLeftSeconds = Math.floor((scheduledTime - nowTime) / 1000);
-             const displayTime = formatSeconds(Math.abs(timeLeftSeconds));
-             const pauseText = isPaused ? '(Pausado)' : (isPending ? '(Não iniciado)' : '');
-             elapsedText = timeLeftSeconds >= 0 ? `Faltam: ${displayTime} ${pauseText}` : `ATRASO: ${displayTime} ${pauseText}`;
-             elapsedColor = timeLeftSeconds >= 0 ? elapsedColor : '#f44336';
-             const alertTimeStr = new Date(task.scheduledAlertISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             const limitTimeStr = new Date(task.scheduledLimitISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             targetText = `Janela: ${alertTimeStr} - ${limitTimeStr} (Programado)`;
+            const nowTime = new Date().getTime();
+            const scheduledTime = new Date(task.scheduledLimitISO).getTime();
+            const timeLeftSeconds = Math.floor((scheduledTime - nowTime) / 1000);
+            const displayTime = formatSeconds(Math.abs(timeLeftSeconds));
+            const pauseText = isPaused ? '(Pausado)' : (isPending ? '(Não iniciado)' : '');
+            elapsedText = timeLeftSeconds >= 0 ? `Faltam: ${displayTime} ${pauseText}` : `ATRASO: ${displayTime} ${pauseText}`;
+            elapsedColor = timeLeftSeconds >= 0 ? elapsedColor : '#f44336';
+            const alertTimeStr = new Date(task.scheduledAlertISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const limitTimeStr = new Date(task.scheduledLimitISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            targetText = `Janela: ${alertTimeStr} - ${limitTimeStr} (Programado)`;
         } else {
             // Manual estático
             elapsedText = `Decorrido: ${formatSeconds(task.runtimeSeconds)}`;
@@ -1465,7 +1513,7 @@ function renderActivityPreview() {
     const filterText = searchInput ? searchInput.value.toLowerCase() : '';
 
     // Lógica de filtragem por texto
-    const filteredActivities = activities.filter(t => 
+    const filteredActivities = activities.filter(t =>
         t['Event / Action'].toLowerCase().includes(filterText) ||
         t['Proc. ID'].toLowerCase().includes(filterText) ||
         filterText === ''
@@ -1514,13 +1562,13 @@ async function downloadAllImagesZip() {
     showNotification(`Gerando ZIP com ${fileCount} imagens...`, 2000);
     const content = await zip.generateAsync({ type: "blob" }); // Gera o arquivo ZIP
     const date = new Date().toISOString().slice(0, 10);
-    
+
     // Inicia o download
     const a = document.createElement('a');
     a.href = URL.createObjectURL(content);
     a.download = `Evidencias_DITL_${date}.zip`;
     a.click();
-    URL.revokeObjectURL(a.href); 
+    URL.revokeObjectURL(a.href);
     showNotification('Download do ZIP concluído!', 2000);
 }
 
@@ -1541,9 +1589,9 @@ function onFileSelected(event) {
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         parsedData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }); // Lê como array de arrays
-        
+
         if (parsedData.length === 0) return showNotification('Arquivo vazio ou inválido.', 3000, 'warning');
-        
+
         headerRow = parsedData.shift(); // Remove e armazena o cabeçalho
         setupMappingModal();
     };
@@ -1557,7 +1605,7 @@ function onFileSelected(event) {
 function setupMappingModal() {
     const modal = document.getElementById('mappingModal');
     const requiredMaps = ['mapTime', 'mapProc', 'mapEvent', 'mapAction', 'mapAcceptance'];
-    
+
     // Preenche os selects com as colunas da planilha
     requiredMaps.forEach(id => {
         document.getElementById(id).innerHTML = '';
@@ -1571,7 +1619,7 @@ function setupMappingModal() {
             selectEl.appendChild(option);
         });
     });
-    
+
     // Adiciona a opção "Não usar"
     requiredMaps.forEach(id => {
         const selectEl = document.getElementById(id);
@@ -1583,16 +1631,16 @@ function setupMappingModal() {
 
     // Tenta pré-selecionar colunas com base no texto do cabeçalho
     requiredMaps.forEach(id => {
-          const selectEl = document.getElementById(id);
-          for (let i = 0; i < selectEl.options.length; i++) {
-              const optionText = selectEl.options[i].textContent;
-              const index = selectEl.options[i].value;
-              if (optionText.includes('T +') && id === 'mapTime') selectEl.value = index;
-              if (optionText.includes('Proc.') && id === 'mapProc') selectEl.value = index;
-              if (optionText.includes('Event') && id === 'mapEvent') selectEl.value = index;
-              if (optionText.includes('Action') && id === 'mapAction') selectEl.value = index;
-              if (optionText.includes('Criteria') && id === 'mapAcceptance') selectEl.value = index;
-          }
+        const selectEl = document.getElementById(id);
+        for (let i = 0; i < selectEl.options.length; i++) {
+            const optionText = selectEl.options[i].textContent;
+            const index = selectEl.options[i].value;
+            if (optionText.includes('T +') && id === 'mapTime') selectEl.value = index;
+            if (optionText.includes('Proc.') && id === 'mapProc') selectEl.value = index;
+            if (optionText.includes('Event') && id === 'mapEvent') selectEl.value = index;
+            if (optionText.includes('Action') && id === 'mapAction') selectEl.value = index;
+            if (optionText.includes('Criteria') && id === 'mapAcceptance') selectEl.value = index;
+        }
     });
 
     // Exibe a pré-visualização dos dados
@@ -1613,7 +1661,7 @@ function setupMappingModal() {
 /**
  * @description Confirma o mapeamento e importa as atividades da planilha para o array `activities`.
  */
-function confirmImport() {
+async function confirmImport() {
     // Mapeia os valores dos selects para os índices das colunas
     const map = {
         'T + (hh:mm)': document.getElementById('mapTime').value,
@@ -1622,7 +1670,7 @@ function confirmImport() {
         'Event / Action': document.getElementById('mapAction').value,
         'Key Acceptance Criteria': document.getElementById('mapAcceptance').value
     };
-    
+
     // Cria o array de objetos `activities` usando o mapeamento
     activities = parsedData.map(row => ({
         'T + (hh:mm)': row[map['T + (hh:mm)']] || '',
@@ -1632,15 +1680,24 @@ function confirmImport() {
         'Key Acceptance Criteria': row[map['Key Acceptance Criteria']] || ''
     })).filter(t => t['Event / Action']); // Filtra tarefas sem nome
 
-    persistAll();
-    cancelMapping();
-    document.getElementById('loadedSummary').textContent = `${activities.length} atividades importadas com sucesso.`;
-    document.getElementById('loadedContainer').classList.remove('hidden');
-    updateStats();
-    renderActivityPreview();
-    showNotification('Planilha importada com sucesso!', 3000);
-    renderHeaderStatus();
+    try {
+        const res = await fetch(`${API_BASE_URL}/atividades-importadas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activities: activitiesToImport })
+        });
+
+        if (!res.ok) throw new Error('Erro na API');
+
+        await loadState();
+        cancelMapping();
+        showNotification('Planilha importada para o Banco de Dados!', 3000);
+
+    } catch (e) {
+        showNotification('Falha ao importar.', 3000, 'critical');
+    }
 }
+
 
 /**
  * @description Fecha o modal de mapeamento.
@@ -1662,7 +1719,7 @@ function downloadJSON() {
     const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const date = new Date().toISOString().slice(0, 10);
-    
+
     // Inicia o download
     const a = document.createElement('a');
     a.href = url;
@@ -1675,32 +1732,32 @@ function downloadJSON() {
 /**
  * @description Renderiza a lista de relatórios de execuções (turnos) na aba "Relatórios", aplicando o filtro de status.
  */
-function renderAllReports() {
+async function renderAllReports() {
     const reportListEl = document.getElementById('reportList');
-    reportListEl.innerHTML = '';
-    const filterValue = document.getElementById('reportFilter').value;
-    
-    // Ordena por data de início do turno
-    let filteredExecutions = executions.sort((a, b) => new Date(b.shiftStart) - new Date(a.shiftStart));
-    
-    // Aplica o filtro de status
-    if (filterValue !== 'todos') {
-        filteredExecutions = filteredExecutions.filter(e => e.status === filterValue);
-    }
-    
-    if (filteredExecutions.length === 0) {
-        reportListEl.innerHTML = `<div class="small text-center">Nenhum relatório encontrado com o filtro atual.</div>`;
-        return;
-    }
+    reportListEl.innerHTML = 'Carregando...';
 
-    // Renderiza cada relatório (turno) como um item de lista
-    filteredExecutions.forEach(inst => {
-        const total = inst.tasks.length;
-        const done = inst.tasks.filter(t => t.completed).length;
-        const totalTime = inst.tasks.reduce((acc, t) => acc + (t.runtimeSeconds || 0), 0);
-        const totalTimeFormatted = formatSeconds(totalTime);
-        const isCompleted = inst.status === 'concluido';
-        reportListEl.innerHTML += `
+    try {
+        const res = await fetch(`${API_BASE_URL}/relatorios`);
+        const executionsData = await res.json();
+
+        const filterValue = document.getElementById('reportFilter').value;
+        let filteredExecutions = executionsData;
+        if (filterValue !== 'todos') filteredExecutions = filteredExecutions.filter(e => e.status === filterValue);
+
+        reportListEl.innerHTML = '';
+        if (filteredExecutions.length === 0) {
+            reportListEl.innerHTML = `<div class="small text-center">Nenhum relatório encontrado.</div>`;
+            return;
+        }
+
+        // Renderiza cada relatório (turno) como um item de lista
+        filteredExecutions.forEach(inst => {
+            const total = inst.tasks.length;
+            const done = inst.tasks.filter(t => t.completed).length;
+            const totalTime = inst.tasks.reduce((acc, t) => acc + (t.runtimeSeconds || 0), 0);
+            const totalTimeFormatted = formatSeconds(totalTime);
+            const isCompleted = inst.status === 'concluido';
+            reportListEl.innerHTML += `
             <div class="task-item ${isCompleted ? 'completed' : ''}" style="cursor:pointer; padding:16px;" onclick="previewReport('${inst.instanceId}')">
                 <div class="task-header">
                     <div>
@@ -1716,24 +1773,38 @@ function renderAllReports() {
                 <div class="small mt-8">Tarefas: ${done}/${total} concluídas.</div>
             </div>
         `;
-    });
+        });
+    } catch (e) {
+        reportListEl.innerHTML = 'Erro ao carregar relatórios.';
+    }
 }
 
 /**
  * @description Abre o modal de pré-visualização de um relatório de turno completo.
  * @param {string} instanceId - O ID da instância de execução.
  */
-function previewReport(instanceId) {
-    const inst = executions.find(e => e.instanceId === instanceId);
-    if (!inst) return;
+async function previewReport(instanceId) {
+    try {
+        const res = await fetch(`${API_BASE_URL}/relatorio/${instanceId}`);
+        const instData = await res.json();
+        const mappedInst = {
+            instanceId: instData.instanceId,
+            operator: instData.operadorResponsavel,
+            shiftStart: instData.inicioTurno,
+            shiftEnd: instData.fimTurno,
+            status: instData.status,
+            tasks: instData.tasks.map(t => mapApiTaskToLocal(t, null))
+        };
 
-    currentReportInstanceId = instanceId; 
-    const innerEl = document.getElementById('reportPreviewInner');
-    innerEl.innerHTML = generateReportHTML(inst); // Gera o HTML do relatório
-    
-    // Exibe o modal
-    document.getElementById('reportPreviewModal').style.zIndex = '9999'; 
-    document.getElementById('reportPreviewModal').classList.remove('hidden');
+        currentReportInstanceId = instanceId;
+        const innerEl = document.getElementById('reportPreviewInner');
+        innerEl.innerHTML = generateReportHTML(mappedInst);
+
+        document.getElementById('reportPreviewModal').style.zIndex = '9999';
+        document.getElementById('reportPreviewModal').classList.remove('hidden');
+    } catch (e) {
+        showNotification('Erro ao carregar detalhes do relatório.', 3000, 'critical');
+    }
 }
 
 /**
@@ -1794,25 +1865,25 @@ function generateReportHTML(inst) {
         <h5>Atividades registradas:</h5>
         <hr style="border: 1px solid #ccc; margin-bottom: 10px;">
     `;
-    
+
     // Adiciona o bloco de detalhes de cada tarefa
     inst.tasks.forEach(task => {
         const photosHtml = task.photos.map(p => `<img src="${p}" class="evidence-img">`).join('');
         const taskStatus = task.completed ? (task.success ? 'SUCESSO' : 'FALHA') : 'NÃO CONCLUÍDA';
         let timeInfo = `Tempo: ${formatSeconds(task.runtimeSeconds)}`;
-        
+
         // Detalhe do modo de tempo
         if (task.timeMode === 'countdown' && task.targetSeconds > 0) {
-             const targetDisplay = secondsToHHMM(task.targetSeconds);
-             timeInfo += ` (Máximo: ${targetDisplay}, Modo: Regressiva)`;
+            const targetDisplay = secondsToHHMM(task.targetSeconds);
+            timeInfo += ` (Máximo: ${targetDisplay}, Modo: Regressiva)`;
         } else if (task.timeMode === 'scheduled' && task.scheduledLimitISO) {
-             const alertTimeStr = new Date(task.scheduledAlertISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             const limitTimeStr = new Date(task.scheduledLimitISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             timeInfo += ` (Janela: ${alertTimeStr} - ${limitTimeStr}, Modo: Programado)`;
+            const alertTimeStr = new Date(task.scheduledAlertISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const limitTimeStr = new Date(task.scheduledLimitISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            timeInfo += ` (Janela: ${alertTimeStr} - ${limitTimeStr}, Modo: Programado)`;
         } else {
-             timeInfo += ` (Modo: Manual)`;
+            timeInfo += ` (Modo: Manual)`;
         }
-        
+
         html += `
             <div class="report-task">
                 <div class="task-title">${escapeHtml(task['Event / Action'])}</div>
@@ -1841,7 +1912,7 @@ function generateTaskReportHTML(task, inst) {
     let photosHtml = task.photos.map(p => `<img src="${p}" class="evidence-img">`).join('');
     const taskStatus = task.completed ? (task.success ? 'SUCESSO' : 'FALHA') : 'NÃO CONCLUÍDA';
     let timeInfo = `Tempo: ${formatSeconds(task.runtimeSeconds)}`;
-    
+
     // Detalhe do modo de tempo
     if (task.timeMode === 'countdown' && task.targetSeconds > 0) {
         const targetDisplay = secondsToHHMM(task.targetSeconds);
@@ -1916,13 +1987,13 @@ async function downloadTaskPDF(taskId) {
     if (!task.completed) {
         return showNotification('A tarefa deve ser concluída para gerar o relatório unitário.', 3000, 'warning');
     }
-    
+
     // Gera o HTML e prepara o container temporário para a geração do PDF
     const reportHtml = generateTaskReportHTML(task, executingActivity);
     const tempContainer = document.createElement('div');
-    tempContainer.id = `report-unitario-${taskId}`; 
+    tempContainer.id = `report-unitario-${taskId}`;
     tempContainer.innerHTML = reportHtml;
-    tempContainer.style.width = '210mm'; 
+    tempContainer.style.width = '210mm';
     tempContainer.style.padding = '10mm';
     tempContainer.style.position = 'absolute';
     tempContainer.style.left = '-9999px'; // Move para fora da tela
@@ -1949,17 +2020,17 @@ async function downloadTaskPDF(taskId) {
 function downloadReportPDFFromPreview() {
     if (!currentReportInstanceId) {
         closeReportPreview();
-        return; 
+        return;
     }
     const inst = executions.find(e => e.instanceId === currentReportInstanceId);
     if (!inst) {
         closeReportPreview();
         return;
     }
-    
+
     // Gera o HTML do relatório completo e prepara o container temporário
     const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = generateReportHTML(inst); 
+    tempContainer.innerHTML = generateReportHTML(inst);
     tempContainer.style.width = '210mm';
     tempContainer.style.padding = '10mm';
     tempContainer.style.position = 'absolute';
@@ -1967,12 +2038,12 @@ function downloadReportPDFFromPreview() {
     document.body.appendChild(tempContainer);
 
     const date = new Date(inst.shiftStart).toISOString().slice(0, 10);
-    
+
     // Gera o PDF
     generatePdfFromElement(tempContainer, `Relatorio_Turno_${inst.operator}_${date}`).then(() => {
-          document.body.removeChild(tempContainer);
-          showNotification('PDF do relatório individual gerado!', 3000);
-          closeReportPreview();
+        document.body.removeChild(tempContainer);
+        showNotification('PDF do relatório individual gerado!', 3000);
+        closeReportPreview();
     });
 }
 
@@ -1981,9 +2052,9 @@ function downloadReportPDFFromPreview() {
  * @description Gera e baixa um relatório PDF consolidado de TODAS as execuções salvas.
  */
 async function generateFinalReportPDF() {
-    const allExecutions = executions; 
+    const allExecutions = executions;
     if (allExecutions.length === 0) return showNotification('Nenhuma execução registrada para relatório final.', 3000);
-    
+
     // 1. Cria o container temporário fora da tela para montagem
     const tempContainer = document.createElement('div');
     tempContainer.style.width = '210mm'; // Define a largura base do A4 para o PDF
@@ -1995,14 +2066,14 @@ async function generateFinalReportPDF() {
 
     // 2. Gera o HTML para cada execução
     allExecutions.forEach(inst => {
-        const reportHtml = generateReportHTML(inst); 
+        const reportHtml = generateReportHTML(inst);
         const reportDiv = document.createElement('div');
         reportDiv.innerHTML = reportHtml;
         tempContainer.appendChild(reportDiv);
         // Adiciona uma quebra de página se não for o último relatório
         if (inst !== allExecutions[allExecutions.length - 1]) {
             const hr = document.createElement('div'); // Usar div e estilo para quebra de página
-            hr.style.pageBreakAfter = 'always'; 
+            hr.style.pageBreakAfter = 'always';
             hr.style.height = '10px';
             tempContainer.appendChild(hr);
         }
@@ -2020,7 +2091,7 @@ async function generateFinalReportPDF() {
     } finally {
         // 4. Limpeza: Remove o container temporário
         if (document.body.contains(tempContainer)) {
-             document.body.removeChild(tempContainer);
+            document.body.removeChild(tempContainer);
         }
     }
 }
@@ -2038,26 +2109,26 @@ async function generatePdfFromElement(element, filename) {
     showNotification('Gerando PDF... Aguarde.', 3000);
 
     const { jsPDF } = window.jspdf;
-    
+
     // Converte o HTML em um canvas (imagem)
-    const canvas = await html2canvas(element, { 
+    const canvas = await html2canvas(element, {
         scale: 2,
         scrollY: -window.scrollY // Ajuste para elementos fora da viewport
-    }); 
+    });
 
     const imgData = canvas.toDataURL('image/png');
     const imgWidth = 210; // Largura do A4 em mm
     const pageHeight = 295; // Altura do A4 em mm
     const imgHeight = canvas.height * imgWidth / canvas.width; // Altura da imagem mantendo proporção
-    
+
     let position = 0;
     const pdf = new jsPDF('p', 'mm', 'a4');
-    
+
     // Adiciona a primeira página
     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    
+
     let heightLeft = imgHeight - pageHeight;
-    
+
     // Lógica para adicionar páginas se o conteúdo for maior que A4
     while (heightLeft > 0) {
         position = -(imgHeight - heightLeft);
@@ -2065,7 +2136,7 @@ async function generatePdfFromElement(element, filename) {
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
     }
-    
+
     pdf.save(`${filename}.pdf`);
 }
 
@@ -2078,7 +2149,7 @@ function checkDueTasks() {
     const now = new Date();
     const shiftStart = new Date(executingActivity.shiftStart);
     // Tempo decorrido do turno
-    const elapsedShiftSeconds = Math.floor((now.getTime() - shiftStart.getTime()) / 1000); 
+    const elapsedShiftSeconds = Math.floor((now.getTime() - shiftStart.getTime()) / 1000);
     let changed = false;
 
     executingActivity.tasks.forEach(t => {
@@ -2110,5 +2181,5 @@ function checkDueTasks() {
  */
 function startScheduledChecker() {
     if (dueCheckerInterval) clearInterval(dueCheckerInterval);
-    dueCheckerInterval = setInterval(checkDueTasks, 30000); 
+    dueCheckerInterval = setInterval(checkDueTasks, 30000);
 }
