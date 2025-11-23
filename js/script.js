@@ -459,7 +459,7 @@ function renderHeaderStatus() {
     // Adicionar o botão Reiniciar turno
     const btnReset = document.getElementById('btnResetShift');
 
-    if (shiftActiveISO) {
+    if (shiftActiveISO && executingActivity) {
         const operatorName = executingActivity ? executingActivity.operator : 'N/A';
         shiftStatusEl.textContent = `Turno ATIVO desde: ${new Date(shiftActiveISO).toLocaleString()} (Operador: ${operatorName})`;
         btnStart.disabled = true;
@@ -497,15 +497,15 @@ async function startShift() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ operator, shiftStart })
         });
-        
+
         if (!res.ok) throw new Error('Falha ao iniciar turno na API');
-        
+
         localStorage.setItem('shiftActiveISO', shiftStart);
         await loadState();
 
         const execButton = document.querySelector(".tab-btn[onclick*='execucao']");
         showTab('execucao', execButton);
-        
+
         showNotification('Turno iniciado com sucesso!', 3000);
 
         if (executingActivity && executingActivity.tasks[0]) {
@@ -1264,33 +1264,34 @@ function updateStats() {
 function renderExecutionInstances() {
     const listEl = document.getElementById('activityList');
     listEl.innerHTML = '';
-    const allExecutions = executions.sort((a, b) => new Date(b.shiftStart) - new Date(a.shiftStart));
-    const activeExecutions = allExecutions.filter(e => e.status === 'ativo');
-
-    // Mensagens de estado vazio
-    if (activeExecutions.length === 0 && activities.length > 0 && !localStorage.getItem('shiftActiveISO')) {
-        listEl.innerHTML = `<div class="small text-center p-12">Inicie o turno para ver e executar as tarefas importadas.</div>`;
-        document.getElementById('executionPanel').classList.add('hidden');
-        return;
-    }
-    if (activeExecutions.length === 0 && activities.length > 0) {
-        listEl.innerHTML = `<div class="small text-center p-12">Nenhum turno ativo. Selecione outro turno na aba relatórios.</div>`;
-        document.getElementById('executionPanel').classList.add('hidden');
+    if (!executingActivity) {
+        listEl.innerHTML = `<div class="small text-center p-12">Nenhum turno ativo no momento.</div>`;
+        const execPanel = document.getElementById('executionPanel');
+        if (execPanel) execPanel.classList.add('hidden');
         return;
     }
 
     const inst = executingActivity;
-    const total = inst.tasks.length;
-    const done = inst.tasks.filter(t => t.completed).length;
+    const tasks = inst.tasks || [];
+    const total = tasks.length;
+    const done = tasks.filter(t => t.completed).length;
     const progressPercent = total > 0 ? ((done / total) * 100).toFixed(0) : 0;
     const startTime = new Date(inst.shiftStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     listEl.innerHTML += `
-            <div class="activity-card card" onclick="selectExecutionInstance('${inst.instanceId}')" style="${isSelected ? 'transform: translateY(0); border-color:#F20587; border: 2px solid #F20587;' : 'cursor: pointer;'}">
-                <div class="fw-700">Turno: ${new Date(inst.shiftStart).toLocaleDateString()}, ${startTime}</div>
-                <div class="small">Operador: ${inst.operator}</div>
-                <div class="small">Progresso: ${done}/${total} (${progressPercent}%)</div>
-            </div>
-        `;
+        <div class="activity-card card" onclick="selectExecutionInstance('${inst.instanceId}')" style="transform: translateY(0); border-color:#F20587; border: 2px solid #F20587; cursor: pointer;">
+            <div class="fw-700">Turno: ${new Date(inst.shiftStart).toLocaleDateString()}, ${startTime}</div>
+            <div class="small">Operador: ${inst.operator}</div>
+            <div class="small">Progresso: ${done}/${total} (${progressPercent}%)</div>
+        </div>
+    `;
+    
+    const execPanel = document.getElementById('executionPanel');
+    const title = document.getElementById('executionTitle');
+    
+    if (execPanel) {
+        execPanel.classList.remove('hidden');
+        if(title) title.textContent = `Executando: Turno de ${new Date(inst.shiftStart).toLocaleDateString()} (Operador: ${inst.operator})`;
+    }
 }
 
 /**
@@ -1637,7 +1638,11 @@ function setupMappingModal() {
             const index = selectEl.options[i].value;
             if (optionText.includes('T +') && id === 'mapTime') selectEl.value = index;
             if (optionText.includes('Proc.') && id === 'mapProc') selectEl.value = index;
-            if (optionText.includes('Event') && id === 'mapEvent') selectEl.value = index;
+            if (id === 'mapEvent') {
+                if (optionText.includes('Event') && !optionText.includes('Action')) {
+                    selectEl.value = index;
+                }
+            }
             if (optionText.includes('Action') && id === 'mapAction') selectEl.value = index;
             if (optionText.includes('Criteria') && id === 'mapAcceptance') selectEl.value = index;
         }
@@ -1672,7 +1677,7 @@ async function confirmImport() {
     };
 
     // Cria o array de objetos `activities` usando o mapeamento
-    activities = parsedData.map(row => ({
+    const activitiesToImport = parsedData.map(row => ({
         'T + (hh:mm)': row[map['T + (hh:mm)']] || '',
         'Proc. ID': row[map['Proc. ID']] || '',
         'Event': row[map['Event']] || '',
