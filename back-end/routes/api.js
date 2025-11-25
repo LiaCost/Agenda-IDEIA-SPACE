@@ -31,7 +31,7 @@ function timeToTotalSeconds(timeStr) {
     if (!timeStr) return 0;
     const matches = timeStr.match(/(\d{2}):(\d{2})/g);
     if (!matches) return 0;
-    const lastTimeStr = matches[matches.length - 1]; 
+    const lastTimeStr = matches[matches.length - 1];
     const parts = lastTimeStr.split(':').map(p => parseInt(p, 10));
     if (parts.length === 2) {
         const hours = parts[0];
@@ -109,7 +109,7 @@ router.get('/api/turno-ativo', async (req, res) => {
         const tarefasCamel = toCamelCase(tarefas);
         for (let tarefa of tarefasCamel) {
             const [fotos] = await pool.query('SELECT imagem_base64 AS base64 FROM evidencias_fotos WHERE task_id = ?', [tarefa.taskId]);
-            tarefa.photos = fotos.map(f => f.base64); 
+            tarefa.photos = fotos.map(f => f.base64);
         }
         turnoAtivo.tasks = tarefasCamel;
         res.json(turnoAtivo);
@@ -132,8 +132,8 @@ router.post('/api/turnos/iniciar', async (req, res) => {
         for (const act of atividades) {
             const taskId = `TASK-${instanceId.split('-')[1]}-${taskCounter}`;
             const targetSeconds = timeToTotalSeconds(act.tempo_previsto);
-            await conn.query('INSERT INTO tarefas_execucao (task_id, turno_instance_id, proc_id, acao, status, time_mode, target_seconds) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-            [taskId, instanceId, act.proc_id, act.acao, 'pendente', 'countdown', targetSeconds]);
+            await conn.query('INSERT INTO tarefas_execucao (task_id, turno_instance_id, proc_id, acao, status, time_mode, target_seconds) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [taskId, instanceId, act.proc_id, act.acao, 'pendente', 'countdown', targetSeconds]);
             taskCounter++;
         }
         await conn.commit();
@@ -213,9 +213,18 @@ router.get('/api/relatorios', async (req, res) => {
         const [turnos] = await pool.query('SELECT * FROM turnos ORDER BY inicio_turno DESC');
         const turnosCamel = toCamelCase(turnos);
         for (let turno of turnosCamel) {
-            const [stats] = await pool.query(`SELECT COUNT(*) AS total, SUM(completed = TRUE) AS done FROM tarefas_execucao WHERE turno_instance_id = ?`, [turno.instanceId]);
-            turno.tasksTotal = stats[0].total || 0;
-            turno.tasksDone = stats[0].done || 0;
+            const [stats] = await pool.query(`
+                SELECT 
+                    COUNT(*) AS total, 
+                    COALESCE(SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END), 0) AS done, 
+                    COALESCE(SUM(runtime_seconds), 0) AS duration 
+                FROM tarefas_execucao 
+                WHERE turno_instance_id = ?`,
+                [turno.instanceId]
+            );
+            turno.tasksTotal = stats[0].total;
+            turno.tasksDone = stats[0].done;
+            turno.totalDuration = stats[0].duration;
         }
         res.json(turnosCamel);
     } catch (error) {
@@ -234,9 +243,9 @@ router.get('/api/relatorio/:id', async (req, res) => {
         const tarefasCamel = toCamelCase(tarefas);
         for (let tarefa of tarefasCamel) {
             const [fotos] = await pool.query('SELECT imagem_base64 AS base64 FROM evidencias_fotos WHERE task_id = ?', [tarefa.taskId]);
-            tarefa.photos = fotos.map(f => f.base64); 
+            tarefa.photos = fotos.map(f => f.base64);
             const [modelo] = await pool.query('SELECT acao, criterios_aceitacao, proc_id FROM atividades_importadas WHERE proc_id = ?', [tarefa.procId]);
-            if(modelo.length > 0) {
+            if (modelo.length > 0) {
                 tarefa['Event / Action'] = modelo[0].acao;
                 tarefa['Key Acceptance Criteria'] = modelo[0].criterios_aceitacao;
                 tarefa['Proc. ID'] = modelo[0].proc_id;

@@ -4,6 +4,7 @@ let activities = []; // Array de todas as atividades/tarefas importadas da plani
 let executions = []; // Array de instâncias de execução de turnos (shifts) passadas e ativas.
 let executingActivity = null; // Objeto da instância de execução do turno ATIVO atualmente.
 const stopwatchIntervals = {}; // Objeto para armazenar os IDs dos setIntervals dos cronômetros de cada tarefa (taskId como chave).
+const saveIntervals = {};
 let dueCheckerInterval = null; // ID do setInterval para verificar tarefas atrasadas ('due').
 let alertCheckerInterval = null; // ID do setInterval para verificar alertas agendados ('scheduledAlertISO').
 let masterClockInterval = null; // ID do setInterval para o relógio mestre (progressivo/regressivo do turno).
@@ -155,8 +156,10 @@ function mapApiTaskToLocal(apiTask, importedActivities) {
         'Event': eventGroup,
         'T + (hh:mm)': timeStr,
         status: apiTask.status,
-        runtimeSeconds: apiTask.runtimeSeconds || 0,
-        targetSeconds: apiTask.targetSeconds || 0,
+
+        runtimeSeconds: Number(apiTask.runtimeSeconds) || 0,
+        targetSeconds: Number(apiTask.targetSeconds) || 0,
+
         timeMode: apiTask.timeMode || 'countdown',
         completed: apiTask.completed === 1 || apiTask.completed === true,
         completedAt: apiTask.completedAt,
@@ -760,84 +763,72 @@ function startMasterClock(totalDurationInSeconds) {
 function startStopwatch(taskId) {
     const task = executingActivity.tasks.find(tt => tt.id === taskId);
     if (!task) return;
-    // Verifica se outra tarefa já está em execução
+
+    // Pausa outras tarefas se houver
     const currentlyRunning = executingActivity.tasks.find(t => t._stopwatchRunning);
-    // CORREÇÃO: Pausa explicitamente a tarefa que está rodando, se for outra.
     if (currentlyRunning && currentlyRunning.id !== taskId) {
         pauseStopwatch(currentlyRunning.id);
-        // Não precisa de notificação, pois a nova tarefa será iniciada logo em seguida.
     }
-    if (task._stopwatchRunning) {
-        showNotification('Cronómetro já em execução para esta tarefa.');
-        return;
-    }
+    if (task._stopwatchRunning) return;
+
     task._stopwatchRunning = true;
-    task._stopwatchStart = new Date().getTime(); // Registra o tempo de início da sessão atual
-    task.status = 'em execução';
-    task.due = false; // Reinicia o status de atraso ao iniciar/retomar
+    task._stopwatchStart = new Date().getTime();
+    task.status = 'em execucao';
+    task.due = false;
+
     updateExecutionTaskUI(taskId);
 
+    // 1. Atualiza status no banco (enviando o tempo acumulado atual)
+    // Importante: Envia task.runtimeSeconds que veio do LoadState (ex: 120s)
     fetch(`${API_BASE_URL}/tarefa/${taskId}/atualizar-status`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'pendente', runtimeSeconds: task.runtimeSeconds })
+        body: JSON.stringify({ status: 'em execucao', runtimeSeconds: task.runtimeSeconds || 0 })
     }).catch(console.error);
 
-    // Inicia o intervalo de atualização do cronômetro da tarefa
+    // 2. Intervalo Visual (Atualiza a tela a cada 1s)
     stopwatchIntervals[taskId] = setInterval(() => {
         const now = new Date().getTime();
-        // Duração da sessão atual do cronômetro
         const sessionElapsedSeconds = Math.floor((now - task._stopwatchStart) / 1000);
-        // Tempo total, incluindo sessões anteriores
-        const totalElapsed = (task.runtimeSeconds || 0) + sessionElapsedSeconds;
+
+        // CORREÇÃO: Garante que runtimeSeconds seja tratado como número na soma
+        const totalElapsed = (Number(task.runtimeSeconds) || 0) + sessionElapsedSeconds;
+
         const el = document.getElementById(`timer-${taskId}`);
-        if (!el) return;
+        if (el) {
+            let elapsedText = '', targetText = '', elapsedColor = '#F27EBE';
 
-        let elapsedText = '';
-        let targetText = '';
-        let elapsedColor = '';
-
-        // Lógica de exibição com base no modo de tempo
-        if (task.timeMode === 'countdown') {
-            const timeLeft = task.targetSeconds - totalElapsed;
-            const displayTime = formatSeconds(Math.abs(timeLeft));
-            elapsedText = timeLeft >= 0 ? `Restante: ${displayTime}` : `ATRASO: ${displayTime}`;
-            elapsedColor = timeLeft >= 0 ? '#F27EBE' : '#f44336';
-            const targetTime = secondsToHHMM(task.targetSeconds);
-            targetText = `Máximo: ${targetTime} (Regressiva)`;
-
-            // Alerta de tarefa seguinte (últimos 10 segundos)
-            if (timeLeft <= 10 && timeLeft > 0 && !task._nextTaskAlertShown) {
-                task._nextTaskAlertShown = true;
-                const currentIndex = executingActivity.tasks.findIndex(t => t.id === task.id);
-                if (currentIndex !== -1 && (currentIndex + 1) < executingActivity.tasks.length) {
-                    const nextTask = executingActivity.tasks[currentIndex + 1];
-                    if (nextTask && !nextTask.completed) {
-                        showNextTaskBanner(nextTask['Event / Action']); // Exibe o banner
-                    }
-                }
+            if (task.timeMode === 'countdown') {
+                const timeLeft = task.targetSeconds - totalElapsed;
+                elapsedText = timeLeft >= 0 ? `Restante: ${formatSeconds(Math.abs(timeLeft))}` : `ATRASO: ${formatSeconds(Math.abs(timeLeft))}`;
+                elapsedColor = timeLeft >= 0 ? '#F27EBE' : '#f44336';
+                targetText = `Máximo: ${secondsToHHMM(task.targetSeconds)} (Regressiva)`;
+            } else {
+                elapsedText = `Decorrido: ${formatSeconds(totalElapsed)}`;
+                targetText = `Previsão: ${task['T + (hh:mm)'] || '--:--'} (Manual)`;
             }
-        } else if (task.timeMode === 'scheduled' && task.scheduledLimitISO) {
-            // Lógica para modo agendado
-            const scheduledTime = new Date(task.scheduledLimitISO).getTime();
-            const timeLeftMs = scheduledTime - now;
-            const timeLeftSeconds = Math.floor(timeLeftMs / 1000);
-            const displayTime = formatSeconds(Math.abs(timeLeftSeconds));
-            elapsedText = timeLeftSeconds >= 0 ? `Faltam: ${displayTime}` : `ATRASO: ${displayTime}`;
-            elapsedColor = timeLeftSeconds >= 0 ? '#F27EBE' : '#f44336';
-            const alertTimeStr = new Date(task.scheduledAlertISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const limitTimeStr = new Date(task.scheduledLimitISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            targetText = `Janela: ${alertTimeStr} - ${limitTimeStr} (Programado)`;
-        } else {
-            // Lógica para modo manual (cronômetro progressivo)
-            const displayTime = formatSeconds(totalElapsed);
-            elapsedText = `Decorrido: ${displayTime}`;
-            elapsedColor = '#F27EBE';
-            targetText = `Previsão: ${task['T + (hh:mm)'] || '--:--'} (Manual)`;
-        }
 
-        el.querySelector('.elapsed').textContent = elapsedText;
-        el.querySelector('.elapsed').style.color = elapsedColor;
-        el.querySelector('.target').textContent = targetText;
+            el.querySelector('.elapsed').textContent = elapsedText;
+            el.querySelector('.elapsed').style.color = elapsedColor;
+            el.querySelector('.target').textContent = targetText;
+        }
+    }, 1000);
+
+    // 3. AUTO-SAVE: Salva no banco a cada 5 segundos
+    if (saveIntervals[taskId]) clearInterval(saveIntervals[taskId]);
+
+    saveIntervals[taskId] = setInterval(() => {
+        if (!task._stopwatchRunning) return;
+
+        const currentSession = Math.floor((new Date().getTime() - task._stopwatchStart) / 1000);
+        const currentTotal = (Number(task.runtimeSeconds) || 0) + currentSession;
+
+        console.log(`[AutoSave] Salvando tarefa ${taskId}: ${currentTotal}s`); // Debug no console
+
+        fetch(`${API_BASE_URL}/tarefa/${taskId}/atualizar-status`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'em execucao', runtimeSeconds: currentTotal })
+        }).catch(e => console.error("Erro no auto-save", e));
+
     }, 1000);
 }
 
@@ -850,19 +841,27 @@ function pauseStopwatch(taskId) {
     const task = executingActivity.tasks.find(tt => tt.id === taskId);
     if (!task || !task._stopwatchRunning) return;
 
-    // Para o intervalo de atualização
+    // Limpa intervalo visual
     clearInterval(stopwatchIntervals[taskId]);
     delete stopwatchIntervals[taskId];
 
-    // Calcula a duração da sessão e adiciona ao tempo total
+    // Limpa intervalo de auto-save
+    if (saveIntervals[taskId]) {
+        clearInterval(saveIntervals[taskId]);
+        delete saveIntervals[taskId];
+    }
+
+    // Calcula tempo final e atualiza variável local
     const sessionDurationSeconds = Math.floor((new Date().getTime() - task._stopwatchStart) / 1000);
-    task.runtimeSeconds = (task.runtimeSeconds || 0) + sessionDurationSeconds;
+    task.runtimeSeconds = (Number(task.runtimeSeconds) || 0) + sessionDurationSeconds;
 
     task._stopwatchRunning = false;
     task._stopwatchStart = null;
-    task.status = 'pendente'; // Altera o status
-    updateExecutionTaskUI(taskId); // Atualiza a UI para refletir a pausa
+    task.status = 'pendente';
 
+    updateExecutionTaskUI(taskId);
+
+    // Salva no banco
     fetch(`${API_BASE_URL}/tarefa/${taskId}/atualizar-status`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'pendente', runtimeSeconds: task.runtimeSeconds })
@@ -1284,13 +1283,13 @@ function renderExecutionInstances() {
             <div class="small">Progresso: ${done}/${total} (${progressPercent}%)</div>
         </div>
     `;
-    
+
     const execPanel = document.getElementById('executionPanel');
     const title = document.getElementById('executionTitle');
-    
+
     if (execPanel) {
         execPanel.classList.remove('hidden');
-        if(title) title.textContent = `Executando: Turno de ${new Date(inst.shiftStart).toLocaleDateString()} (Operador: ${inst.operator})`;
+        if (title) title.textContent = `Executando: Turno de ${new Date(inst.shiftStart).toLocaleDateString()} (Operador: ${inst.operator})`;
     }
 }
 
@@ -1386,7 +1385,7 @@ function updateExecutionTaskUI(taskId) {
     const isCompleted = task.completed;
     const isDue = task.due;
     const isAlerted = task.alerted;
-    const isPaused = !isRunning && !isCompleted && task.runtimeSeconds > 0;
+    const isPaused = !isRunning && !isCompleted && (task.runtimeSeconds > 0 || task.status === 'em execucao');
     const isPending = !isRunning && !isCompleted && !isPaused;
 
     let buttonsHtml = '';
@@ -1542,35 +1541,66 @@ function renderActivityPreview() {
  * Depende de uma biblioteca `JSZip` externa.
  */
 async function downloadAllImagesZip() {
-    if (executions.length === 0) return showNotification('Nenhuma imagem registrada para download.', 2000);
+    // 1. Verificação de Segurança da Biblioteca
+    if (typeof JSZip === 'undefined') {
+        return showNotification('Erro: Biblioteca JSZip não encontrada no index.html.', 4000, 'critical');
+    }
+
+    // 2. Verifica se há turno ativo com dados
+    if (!executingActivity || !executingActivity.tasks) {
+        return showNotification('Nenhum turno ativo carregado para baixar imagens.', 3000);
+    }
+
     const zip = new JSZip();
     let fileCount = 0;
+    const inst = executingActivity;
 
-    // Itera sobre execuções, tarefas e fotos para adicionar ao ZIP
-    executions.forEach(inst => {
-        inst.tasks.forEach(task => {
+    showNotification('Preparando imagens do turno ativo...', 2000);
+
+    // 3. Itera sobre as tarefas do turno ativo
+    inst.tasks.forEach(task => {
+        if (task.photos && task.photos.length > 0) {
             task.photos.forEach((dataURL, index) => {
-                const base64Data = dataURL.split(',')[1]; // Remove o prefixo data:image/...
-                const fileName = `${inst.operator}_${inst.instanceId.split('-')[1]}_${task.id.split('-')[2]}_${index + 1}.png`;
-                zip.file(fileName, base64Data, { base64: true }); // Adiciona ao ZIP
-                fileCount++;
+                try {
+                    // Remove o prefixo "data:image/png;base64," para o ZIP aceitar
+                    const base64Data = dataURL.split(',')[1];
+
+                    const cleanOperator = (inst.operator || 'Operador').replace(/[^a-z0-9]/gi, '_');
+                    const taskIdClean = task.id.split('-').pop();
+
+                    const fileName = `${cleanOperator}_Task${taskIdClean}_Foto${index + 1}.png`;
+
+                    zip.file(fileName, base64Data, { base64: true });
+                    fileCount++;
+                } catch (err) {
+                    console.error("Erro ao processar imagem:", err);
+                }
             });
-        });
+        }
     });
 
-    if (fileCount === 0) return showNotification('Nenhuma imagem registrada para download.', 2000);
+    if (fileCount === 0) {
+        return showNotification('Nenhuma imagem encontrada neste turno.', 3000, 'warning');
+    }
 
-    showNotification(`Gerando ZIP com ${fileCount} imagens...`, 2000);
-    const content = await zip.generateAsync({ type: "blob" }); // Gera o arquivo ZIP
-    const date = new Date().toISOString().slice(0, 10);
+    try {
+        showNotification(`Compactando ${fileCount} imagens...`, 2000);
+        const content = await zip.generateAsync({ type: "blob" });
+        const date = new Date().toISOString().slice(0, 10);
 
-    // Inicia o download
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(content);
-    a.download = `Evidencias_DITL_${date}.zip`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-    showNotification('Download do ZIP concluído!', 2000);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = `Evidencias_TurnoAtivo_${date}.zip`;
+        document.body.appendChild(a); // Necessário para Firefox
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+
+        showNotification('Download do ZIP concluído!', 3000);
+    } catch (e) {
+        console.error(e);
+        showNotification('Erro ao gerar arquivo ZIP.', 4000, 'critical');
+    }
 }
 
 /**
@@ -1735,7 +1765,9 @@ function downloadJSON() {
 }
 
 /**
- * @description Renderiza a lista de relatórios de execuções (turnos) na aba "Relatórios", aplicando o filtro de status.
+ * @description Renderiza a lista de relatórios na aba "Relatórios".
+ * CORREÇÃO: Mapeia corretamente as propriedades 'inicioTurno'/'operadorResponsavel' que vêm da API
+ * para evitar "Data Inválida" e "Undefined".
  */
 async function renderAllReports() {
     const reportListEl = document.getElementById('reportList');
@@ -1743,11 +1775,16 @@ async function renderAllReports() {
 
     try {
         const res = await fetch(`${API_BASE_URL}/relatorios`);
+        if (!res.ok) throw new Error('Erro na resposta da API');
+
         const executionsData = await res.json();
 
         const filterValue = document.getElementById('reportFilter').value;
         let filteredExecutions = executionsData;
-        if (filterValue !== 'todos') filteredExecutions = filteredExecutions.filter(e => e.status === filterValue);
+
+        if (filterValue !== 'todos') {
+            filteredExecutions = filteredExecutions.filter(e => e.status === filterValue);
+        }
 
         reportListEl.innerHTML = '';
         if (filteredExecutions.length === 0) {
@@ -1755,20 +1792,49 @@ async function renderAllReports() {
             return;
         }
 
-        // Renderiza cada relatório (turno) como um item de lista
         filteredExecutions.forEach(inst => {
-            const total = inst.tasks.length;
-            const done = inst.tasks.filter(t => t.completed).length;
-            const totalTime = inst.tasks.reduce((acc, t) => acc + (t.runtimeSeconds || 0), 0);
-            const totalTimeFormatted = formatSeconds(totalTime);
+            // === CORREÇÃO DE MAPEAMENTO ===
+            // A API manda 'inicioTurno', mas o código antigo buscava 'shiftStart'.
+            // Aqui garantimos que pegamos o valor certo independente do nome.
+            const shiftStart = inst.inicioTurno || inst.shiftStart;
+            const shiftEnd = inst.fimTurno || inst.shiftEnd;
+            const operator = inst.operadorResponsavel || inst.operator || 'N/A';
+
+            const total = inst.tasksTotal || 0;
+            const done = inst.tasksDone || 0;
+            const totalTimeFormatted = formatSeconds(inst.totalDuration || 0);
+
+            // Formatação de Datas
+            let dateStr = 'Data inválida';
+            let timeStartStr = '--:--';
+
+            if (shiftStart) {
+                const startDate = new Date(shiftStart);
+                if (!isNaN(startDate.getTime())) {
+                    dateStr = startDate.toLocaleDateString();
+                    timeStartStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+            }
+
+            let timeEndStr = 'Em andamento';
+            if (shiftEnd) {
+                const endDate = new Date(shiftEnd);
+                if (!isNaN(endDate.getTime())) {
+                    timeEndStr = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+            } else if (inst.status === 'concluido' || inst.status === 'falha') {
+                timeEndStr = 'Não registrado';
+            }
+
             const isCompleted = inst.status === 'concluido';
+
             reportListEl.innerHTML += `
             <div class="task-item ${isCompleted ? 'completed' : ''}" style="cursor:pointer; padding:16px;" onclick="previewReport('${inst.instanceId}')">
                 <div class="task-header">
                     <div>
-                        <h4 class="mb-4">Relatório do turno: ${new Date(inst.shiftStart).toLocaleDateString()}</h4>
-                        <div class="small">Operador: ${inst.operator}</div>
-                        <div class="small">Início: ${new Date(inst.shiftStart).toLocaleTimeString()} | Fim: ${inst.shiftEnd ? new Date(inst.shiftEnd).toLocaleTimeString() : 'Em andamento'}</div>
+                        <h4 class="mb-4">Relatório do turno: ${dateStr}</h4>
+                        <div class="small">Operador: ${operator}</div>
+                        <div class="small">Início: ${timeStartStr} | Fim: ${timeEndStr}</div>
                     </div>
                     <div>
                         <div class="small fw-700" style="color:#F27EBE;">Total executado: ${totalTimeFormatted}</div>
@@ -1777,10 +1843,11 @@ async function renderAllReports() {
                 </div>
                 <div class="small mt-8">Tarefas: ${done}/${total} concluídas.</div>
             </div>
-        `;
+            `;
         });
     } catch (e) {
-        reportListEl.innerHTML = 'Erro ao carregar relatórios.';
+        console.error('Erro no renderAllReports:', e);
+        reportListEl.innerHTML = '<div class="small text-center p-12" style="color:#f44336">Erro ao carregar lista. Verifique o console.</div>';
     }
 }
 
@@ -2027,25 +2094,26 @@ function downloadReportPDFFromPreview() {
         closeReportPreview();
         return;
     }
-    const inst = executions.find(e => e.instanceId === currentReportInstanceId);
-    if (!inst) {
-        closeReportPreview();
+
+    const contentDiv = document.getElementById('reportPreviewInner');
+    if (!contentDiv || contentDiv.innerHTML.trim() === '') {
+        showNotification('Conteúdo do relatório não encontrado.', 3000, 'error');
         return;
     }
 
     // Gera o HTML do relatório completo e prepara o container temporário
     const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = generateReportHTML(inst);
+    tempContainer.innerHTML = contentDiv.innerHTML;
     tempContainer.style.width = '210mm';
     tempContainer.style.padding = '10mm';
     tempContainer.style.position = 'absolute';
     tempContainer.style.left = '-9999px';
     document.body.appendChild(tempContainer);
 
-    const date = new Date(inst.shiftStart).toISOString().slice(0, 10);
+    const date = new Date().toISOString().slice(0, 10);
 
     // Gera o PDF
-    generatePdfFromElement(tempContainer, `Relatorio_Turno_${inst.operator}_${date}`).then(() => {
+    generatePdfFromElement(tempContainer, `Relatorio_Turno_${currentReportInstanceId}_${date}`).then(() => {
         document.body.removeChild(tempContainer);
         showNotification('PDF do relatório individual gerado!', 3000);
         closeReportPreview();
