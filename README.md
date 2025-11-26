@@ -17,12 +17,12 @@ O Sistema DITL é uma aplicação web completa para gerenciamento de tarefas ope
 - *Gerenciamento de turnos* (iniciar, pausar, reiniciar, encerrar)
 - *Cronômetros individuais* por tarefa com três modos:
   - *Countdown*: contagem regressiva com tempo máximo
-  - *Manual**: cronometragem progressiva livre
+  - *Manual*: cronometragem progressiva livre
   - *Scheduled*: tarefas programadas por horário
 - *Auto-save* a cada 5 segundos para evitar perda de dados
 - *Relógio mestre* com tempo decorrido e tempo restante do turno
 - *Sistema de notificações* para alertas e tarefas atrasadas
-- *Coleta de evidências**: operador, observações e até 3 fotos por tarefa
+- *Coleta de evidências*: operador, observações e até 3 fotos por tarefa
 
 📈 Relatórios
 - *Relatórios unitários* por tarefa (PDF)
