@@ -2,7 +2,7 @@
 
 Sistema de gestão de agenda, execução e relatórios de atividades DITL (Day In The Life) para operações de satélite.
 
-📋 Sobre o Projeto
+📋 Sobre o projeto
 
 O Sistema DITL é uma aplicação web completa para gerenciamento de tarefas operacionais em turnos, com foco em atividades de satélite. O sistema permite importar planilhas de atividades, executar tarefas com cronometragem precisa, coletar evidências e gerar relatórios detalhados em PDF.
 
@@ -73,7 +73,8 @@ sistema-ditl/
 │       ├── Logo.png
 │       └── favicon.png
 ├── index.html              # Página principal 
-└── .gitignore
+├── .gitignore
+└── README.md
 ```
 
 🚀 Instalação e Configuração
