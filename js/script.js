@@ -2125,47 +2125,71 @@ function downloadReportPDFFromPreview() {
  * @description Gera e baixa um relatório PDF consolidado de TODAS as execuções salvas.
  */
 async function generateFinalReportPDF() {
-    const allExecutions = executions;
-    if (allExecutions.length === 0) return showNotification('Nenhuma execução registrada para relatório final.', 3000);
-
-    // 1. Cria o container temporário fora da tela para montagem
-    const tempContainer = document.createElement('div');
-    tempContainer.style.width = '210mm'; // Define a largura base do A4 para o PDF
-    tempContainer.style.padding = '10mm';
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.left = '-9999px';
-    tempContainer.id = 'final-report-temp-container'; // ID para fácil remoção
-    tempContainer.style.background = '#fff'; // Fundo branco para garantir a cor no PDF
-
-    // 2. Gera o HTML para cada execução
-    allExecutions.forEach(inst => {
-        const reportHtml = generateReportHTML(inst);
-        const reportDiv = document.createElement('div');
-        reportDiv.innerHTML = reportHtml;
-        tempContainer.appendChild(reportDiv);
-        // Adiciona uma quebra de página se não for o último relatório
-        if (inst !== allExecutions[allExecutions.length - 1]) {
-            const hr = document.createElement('div'); // Usar div e estilo para quebra de página
-            hr.style.pageBreakAfter = 'always';
-            hr.style.height = '10px';
-            tempContainer.appendChild(hr);
-        }
-    });
-
-    document.body.appendChild(tempContainer);
+    showNotification('Iniciando geração do Relatório Final...', 2000);
 
     try {
-        // 3. Gera o PDF usando a função de PDF de alta qualidade
-        await generatePdfFromElement(tempContainer, `Relatorio_Consolidado_DITL_FINAL_COMPLETO_${new Date().toISOString().slice(0, 10)}`);
-        showNotification('Relatório Final (Completo) gerado com sucesso.', 3000);
-    } catch (error) {
-        console.error("Erro ao gerar PDF Consolidado:", error);
-        showNotification('Falha ao gerar o Relatório Final (Verifique o console).', 5000, 'critical');
-    } finally {
-        // 4. Limpeza: Remove o container temporário
-        if (document.body.contains(tempContainer)) {
-            document.body.removeChild(tempContainer);
+        const resList = await fetch(`${API_BASE_URL}/relatorios`);
+        if (!resList.ok) throw new Error('Falha ao buscar lista de relatórios');
+        const list = await resList.json();
+
+        if (list.length === 0) {
+            return showNotification('Nenhum relatório encontrado no banco de dados.', 3000, 'warning');
         }
+
+        showNotification(`Baixando detalhes de ${list.length} relatórios... Aguarde.`, 4000);
+
+        const tempContainer = document.createElement('div');
+        tempContainer.style.width = '210mm'; 
+        tempContainer.style.padding = '10mm';
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.background = '#fff'; 
+        tempContainer.style.color = '#000';
+
+        tempContainer.innerHTML = `
+            <div style="text-align:center; margin-bottom: 50px; font-family: sans-serif;">
+                <h1 style="color: #F20587;">RELATÓRIO CONSOLIDADO DITL</h1>
+                <h3>Histórico Completo de Execuções</h3>
+                <p>Gerado em: ${new Date().toLocaleString()}</p>
+                <p>Total de Turnos: ${list.length}</p>
+            </div>
+        `;
+
+        for (const item of list) {
+            const resDetail = await fetch(`${API_BASE_URL}/relatorio/${item.instanceId}`);
+            const fullApiData = await resDetail.json();
+
+            const mappedInst = {
+                instanceId: fullApiData.instanceId,
+                operator: fullApiData.operadorResponsavel,
+                shiftStart: fullApiData.inicioTurno,
+                shiftEnd: fullApiData.fimTurno,
+                status: fullApiData.status,
+                tasks: fullApiData.tasks.map(t => mapApiTaskToLocal(t, null))
+            };
+
+            const reportHtml = generateReportHTML(mappedInst);
+            const reportDiv = document.createElement('div');
+            reportDiv.innerHTML = reportHtml;
+            
+            reportDiv.style.marginBottom = '40px';
+            reportDiv.style.borderBottom = '2px dashed #ccc';
+            reportDiv.style.paddingBottom = '40px';
+
+            tempContainer.appendChild(reportDiv);
+        }
+
+        document.body.appendChild(tempContainer);
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        await generatePdfFromElement(tempContainer, `Relatorio_Consolidado_TOTAL_${dateStr}`);
+
+        document.body.removeChild(tempContainer);
+        showNotification('Relatório Final gerado com sucesso!', 3000);
+
+    } catch (error) {
+        console.error("Erro ao gerar Relatório Final:", error);
+        showNotification('Erro ao gerar relatório. Verifique o console.', 5000, 'critical');
     }
 }
 
