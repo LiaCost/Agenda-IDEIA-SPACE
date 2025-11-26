@@ -132,7 +132,7 @@ O sistema estará disponível em: **http://localhost:3000**
 
 📖 Como Usar
 
-💠 1. Importar Atividades
+💠 1. Importar atividades
 1. Acesse a aba *"Cadastro / Import"*
 2. Clique em *"Importar arquivo"* e selecione sua planilha XLSX/CSV
 3. Confirme o mapeamento das colunas no modal
@@ -145,34 +145,34 @@ O sistema estará disponível em: **http://localhost:3000**
 - `Event / Action` - Nome da atividade
 - `Key Acceptance Criteria` - Critérios de aceitação
 
-💠 2. Iniciar um Turno
+💠 2. Iniciar um turno
 1. Vá para a aba *"Execução"*
 2. Clique em *"Iniciar turno"*
 3. O sistema criará automaticamente as tarefas e iniciará o cronômetro da primeira
 
-💠 3. Executar Tarefas
+💠 3. Executar tarefas
 - *Pausar*: Para temporariamente o cronômetro
 - *Retomar*: Continua a execução de onde parou
 - *SUCESSO/FALHA*: Abre o modal para coletar evidências e finalizar
 
-💠 4. Coletar Evidências
+💠 4. Coletar evidências
 - Preencha o *ID do Operador* (obrigatório)
 - Adicione *observações* sobre a execução (obrigatório)
 - Anexe até *3 fotos* como evidência (opcional)
 - Confirme para finalizar a tarefa
 
-💠 5. Gerar Relatórios
+💠 5. Gerar relatórios
 1. Acesse a aba *"Relatórios"*
 2. Selecione um turno para visualizar o relatório completo
 3. Use *"Baixar PDF"* para exportar
 4. Use *"Relatório final"* para gerar um PDF consolidado de todos os turnos
 
-🔧 Funcionalidades Avançadas
+🔧 Funcionalidades avançadas
 
 ⚪ Auto-Save
 O sistema salva automaticamente o progresso a cada **5 segundos** durante a execução de tarefas, evitando perda de dados em caso de falhas.
 
-⚪ Recuperação de Estado
+⚪ Recuperação de estado
 Ao recarregar a página, o sistema recupera automaticamente:
 - Turno ativo
 - Progresso das tarefas
@@ -196,7 +196,7 @@ O sistema possui um design moderno e responsivo com:
 - *Modais* para ações importantes
 - *Responsividade* para diferentes tamanhos de tela
 
-👥 Equipe de Desenvolvimento
+👥 Equipe de desenvolvimento
 
 Desenvolvido por estudantes da *UCB (Universidade Católica de Brasília)*:
 - Lia Costa (https://github.com/LiaCost)
