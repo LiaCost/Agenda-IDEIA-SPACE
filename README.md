@@ -1,4 +1,4 @@
-💜🩷Sistema DITL - Agenda & Execução 💜🩷
+💜🩷 Sistema DITL - Agenda & Execução 💜🩷
 
 Sistema de gestão de agenda, execução e relatórios de atividades DITL (Day In The Life) para operações de satélite.
 
