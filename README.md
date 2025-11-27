@@ -208,5 +208,3 @@ Desenvolvido por estudantes da *UCB (Universidade Católica de Brasília)*:
 
 📄 Licença
 © 2025 - Todos os direitos reservados.
-
-*Desenvolvido com ❤️ para operações de satélite*
