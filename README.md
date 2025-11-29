@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="public/image/Logo.png" alt="Logo-IDEIA-SPACE" width="200"/>
+</div>
+
 💜🩷 Sistema DITL - Agenda & Execução 💜🩷
 
 Sistema de gestão de agenda, execução e relatórios de atividades DITL para operações de satélite.
